@@ -1,0 +1,12 @@
+{
+    "autodeskProduct": "Fusion",
+    "type": "addin",
+    "id": "fusion-ai-bridge-addin-001",
+    "author": "Fusion AI Generator",
+    "description": {
+        "": "AI-powered bridge that receives Python scripts via HTTP and executes them in Fusion 360."
+    },
+    "version": "1.0.0",
+    "runOnStartup": false,
+    "supportedOS": "windows|mac"
+}
