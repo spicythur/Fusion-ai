@@ -1,264 +1,298 @@
-import { useState, useRef, useEffect } from "react";
-import { useFusionStatus, useGenerate } from "./hooks/useFusion";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { useFusion } from "./hooks/useFusion";
 import "./App.css";
 
+// ---------------------------------------------------------------------------
+// Preset prompts
+// ---------------------------------------------------------------------------
 const PRESETS = [
-  { icon: "📦", label: "Box 5x5x5cm", prompt: "Create a 5cm x 5cm x 5cm box" },
-  { icon: "🔩", label: "Hex bolt M8", prompt: "Create a hex bolt M8 with head diameter 13mm, head height 5mm, shaft diameter 8mm, shaft length 30mm" },
-  { icon: "🫙", label: "Hollow cylinder", prompt: "Create a hollow cylinder outer diameter 40mm inner diameter 34mm height 60mm" },
-  { icon: "📐", label: "L-bracket", prompt: "Create an L-bracket 80mm x 40mm thickness 5mm with 4 M4 bolt holes on each side" },
-  { icon: "⚙️", label: "Spur gear", prompt: "Create a spur gear with 20 teeth module 2 width 15mm bore hole 8mm" },
-  { icon: "📱", label: "Phone stand", prompt: "Create a simple phone stand with base 80x60mm height 100mm at 70 degree angle" },
+  { label: "Box 5x5x5 cm", prompt: "Create a 5cm x 5cm x 5cm box" },
+  { label: "Cylinder r=3 h=8", prompt: "Create a cylinder with radius 3cm and height 8cm" },
+  { label: "Spur Gear 20T", prompt: "Create a spur gear with 20 teeth, module 1, and 10mm thickness" },
+  { label: "Phone Case", prompt: "Create a basic phone case for a 15cm x 7cm x 0.8cm phone with 1mm wall thickness and rounded corners" },
+  { label: "Simple House", prompt: "Create a simple house shape with a rectangular base 10cm x 8cm x 6cm and a triangular roof" },
+  { label: "Star Shape", prompt: "Create a 5-pointed star shape extruded to 1cm thickness with outer radius 5cm" },
+  { label: "Hex Bolt M8", prompt: "Create a hex bolt M8 with head diameter 13mm, head height 5mm, shaft diameter 8mm, and shaft length 30mm" },
+  { label: "Torus Ring", prompt: "Create a torus (donut shape) with major radius 4cm and minor radius 1cm" },
 ];
 
-function StepIcon({ status }) {
-  if (status === "pending")    return <span style={{ color: "var(--text-muted)" }}>○</span>;
-  if (status === "generating") return <span style={{ color: "var(--primary)", display: "inline-block", animation: "spin 1s linear infinite" }}>◌</span>;
-  if (status === "sending")    return <span style={{ color: "var(--warning)", display: "inline-block", animation: "spin 1s linear infinite" }}>⟳</span>;
-  if (status === "done")       return <span style={{ color: "var(--success)" }}>✓</span>;
-  if (status === "error")      return <span style={{ color: "var(--error)" }}>✗</span>;
-  return null;
-}
+// ---------------------------------------------------------------------------
+// App Component
+// ---------------------------------------------------------------------------
+function App() {
+  const {
+    wsConnected,
+    fusionConnected,
+    isGenerating,
+    lastResult,
+    templateInfo,
+    messages,
+    sendPrompt,
+    sendToFusion,
+    clearChat,
+  } = useFusion();
 
-function StepItem({ step }) {
-  const [expanded, setExpanded] = useState(false);
-  const isActive = step.status === "generating" || step.status === "sending";
-
-  return (
-    <div className={`stepItem ${isActive ? "active" : ""}`} style={{
-      overflow: "hidden",
-      cursor: step.code ? "pointer" : "default",
-    }}
-    onClick={() => step.code && setExpanded((v) => !v)}
-    >
-      <div
-        style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 14px", userSelect: "none" }}
-      >
-        <StepIcon status={step.status} />
-        <span style={{ flex: 1, fontSize: "13px", fontWeight: isActive ? "700" : "600", color: isActive ? "var(--primary-dark)" : "var(--text-main)" }}>
-          Step {step.index}: {step.label}
-        </span>
-        {step.code && <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>{expanded ? "▲" : "▼"}</span>}
-      </div>
-      {expanded && step.code && (
-        <pre className="codeBlock" style={{ margin: 0, borderRadius: 0, borderTop: "1px solid var(--glass-border)", maxHeight: "250px" }}>
-          <code>{step.code}</code>
-        </pre>
-      )}
-      {step.fusionResult && !step.fusionResult.success && (
-        <div className="errorBubble" style={{ margin: 0, borderRadius: 0, background: "rgba(239, 68, 68, 0.1)", color: "var(--error)", padding: "10px 14px", fontSize: "13px", borderTop: "1px solid rgba(239, 68, 68, 0.2)" }}>
-          <span style={{ marginRight: "8px" }}>⚠</span>
-          {step.fusionResult.message}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function AiMessage({ msg }) {
-  if (msg.type === "error") {
-    return (
-      <div className="message assistant">
-        <div className="messageAvatar ai">✦</div>
-        <div className="messageBubble aiBubble" style={{ background: "rgba(254, 242, 242, 0.8)", border: "1px solid rgba(239, 68, 68, 0.2)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-             <span style={{ fontSize: "20px" }}>⚠</span>
-             <div>
-                <div style={{ fontWeight: "700", color: "#991b1b" }}>Error Detected</div>
-                <div style={{ fontSize: "13px", color: "#b91c1c" }}>{msg.statusText}</div>
-             </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="message assistant">
-      <div className="messageAvatar ai">✦</div>
-      <div className="messageBubble aiBubble">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            {msg.type !== "done"
-              ? <div className="streamingDots"><span /><span /><span /></div>
-              : <div style={{ width: "18px", height: "18px", borderRadius: "50%", background: "var(--success)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px" }}>✓</div>
-            }
-            <span style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-main)" }}>{msg.statusText}</span>
-          </div>
-          {msg.totalSteps > 0 && (
-            <span style={{ fontSize: "11px", fontWeight: "700", color: "var(--primary-dark)", background: "rgba(14, 165, 233, 0.1)", padding: "2px 10px", borderRadius: "var(--radius-full)" }}>
-              {msg.currentStep} / {msg.totalSteps}
-            </span>
-          )}
-        </div>
-
-        {msg.totalSteps > 0 && (
-          <div style={{ height: "6px", background: "rgba(0, 0, 0, 0.05)", borderRadius: "var(--radius-full)", marginBottom: "16px", overflow: "hidden" }}>
-            <div style={{
-              height: "100%",
-              width: `${(msg.currentStep / msg.totalSteps) * 100}%`,
-              background: "var(--primary-gradient)",
-              transition: "width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)",
-            }} />
-          </div>
-        )}
-
-        {msg.steps?.length > 0 && (
-          <div style={{ marginTop: "4px" }}>
-            {msg.steps.map((step) => <StepItem key={step.index} step={step} />)}
-          </div>
-        )}
-
-        {msg.type === "done" && (
-          <div style={{
-            marginTop: "16px", padding: "14px",
-            background: "rgba(16, 185, 129, 0.1)", border: "1px solid rgba(16, 185, 129, 0.2)",
-            borderRadius: "var(--radius-sm)", color: "#065f46", fontSize: "14px", fontWeight: "700",
-            textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px"
-          }}>
-            <span>✨</span> Model Ready in Fusion 360!
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-export default function App() {
-  const { connected, checking } = useFusionStatus();
-  const { messages, loading, generate } = useGenerate();
-  const [prompt, setPrompt] = useState("");
-  const [autoSend, setAutoSend] = useState(true);
-  const chatRef = useRef(null);
+  const [input, setInput] = useState("");
+  const [autoSend, setAutoSend] = useState(false);
+  const chatEndRef = useRef(null);
   const textareaRef = useRef(null);
 
-  const hasMessages = messages.filter((m) => m.type !== "welcome").length > 0;
-
+  // Auto-scroll chat
   useEffect(() => {
-    if (chatRef.current) {
-      chatRef.current.scrollTo({
-        top: chatRef.current.scrollHeight,
-        behavior: "smooth"
-      });
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, lastResult]);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (ta) {
+      ta.style.height = "24px";
+      ta.style.height = Math.min(ta.scrollHeight, 120) + "px";
     }
-  }, [messages]);
+  }, [input]);
 
-  const handleSend = (promptText) => {
-    const p = (promptText || prompt).trim();
-    if (!p || loading) return;
-    generate({ prompt: p, autoSend });
-    setPrompt("");
-    if (textareaRef.current) textareaRef.current.style.height = "auto";
+  // Submit handler
+  const handleSubmit = useCallback(() => {
+    const trimmed = input.trim();
+    if (!trimmed || isGenerating) return;
+    sendPrompt(trimmed, autoSend);
+    setInput("");
+  }, [input, isGenerating, autoSend, sendPrompt]);
+
+  // Keyboard handler
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
   };
 
-  const handleKey = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+  // Copy to clipboard
+  const copyCode = (code) => {
+    navigator.clipboard.writeText(code);
   };
 
-  const autoResize = (e) => {
-    e.target.style.height = "auto";
-    e.target.style.height = Math.min(e.target.scrollHeight, 150) + "px";
+  // Download as .py
+  const downloadCode = (code) => {
+    const blob = new Blob([code], { type: "text/x-python" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `fusion_script_${Date.now()}.py`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
+
+  // Preset click
+  const handlePreset = (prompt) => {
+    if (isGenerating) return;
+    sendPrompt(prompt, autoSend);
+  };
+
+  // Retry last user prompt
+  const handleRetry = useCallback(() => {
+    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+    if (lastUserMsg && !isGenerating) {
+      sendPrompt(lastUserMsg.content, autoSend);
+    }
+  }, [messages, isGenerating, autoSend, sendPrompt]);
+
+  // Check if chat has messages
+  const hasMessages = messages.length > 0 || isGenerating;
 
   return (
     <div className="app">
-      <div className="app-bg-3" />
-      {/* Header */}
+      {/* ---- HEADER ---- */}
       <header className="header">
         <div className="headerLeft">
           <div className="logo">F</div>
           <div>
             <div className="headerTitle">Fusion AI Generator</div>
-            <div className="headerSubtitle">Natural Language to 3D Model</div>
+            <div className="headerSubtitle">Natural Language → 3D Models</div>
           </div>
         </div>
+
         <div className="headerRight">
-          <div className={`statusBadge ${connected ? "connected" : "disconnected"}`}>
-            <div className={`statusDot ${connected ? "active" : "inactive"}`} />
-            <span>{checking ? "Checking..." : connected ? "Fusion 360 Connected" : "Disconnected"}</span>
+          {/* Clear chat */}
+          {hasMessages && (
+            <button className="headerBtn" onClick={clearChat} id="clear-chat-btn" title="Clear chat">
+              Clear
+            </button>
+          )}
+
+          {/* WebSocket status */}
+          <div className={`statusBadge ${wsConnected ? "connected" : "disconnected"}`}>
+            <span className={`statusDot ${wsConnected ? "active" : "inactive"}`}></span>
+            <span>Server</span>
+          </div>
+
+          {/* Fusion status */}
+          <div className={`statusBadge ${fusionConnected ? "connected" : "disconnected"}`}>
+            <span className={`statusDot ${fusionConnected ? "active" : "inactive"}`}></span>
+            <span>Fusion 360</span>
           </div>
         </div>
       </header>
 
-      {/* Chat Area */}
-      <div className="chatArea" ref={chatRef}>
+      {/* ---- CHAT AREA ---- */}
+      <div className="chatArea">
         {!hasMessages ? (
+          /* Welcome Screen */
           <div className="welcome">
-            <div className="welcomeIcon">✦</div>
-            <div>
-              <div className="welcomeTitle">Mulai Membuat di Fusion 360</div>
-              <div className="welcomeDesc">
-                Jelaskan model 3D yang ingin Anda buat dalam bahasa alami. AI akan mengeksekusi langkah-langkah desain secara otomatis.
-              </div>
-            </div>
+            <div className="welcomeIcon">F</div>
+            <h1 className="welcomeTitle">What do you want to create?</h1>
+            <p className="welcomeDesc">
+              Describe any 3D model in natural language and I'll generate the
+              Fusion 360 Python script to build it automatically.
+            </p>
+
             <div className="presets">
-              {PRESETS.map((p) => (
-                <button key={p.label} className="presetChip" onClick={() => handleSend(p.prompt)}>
-                  <span>{p.icon}</span> {p.label}
+              {PRESETS.map((p, i) => (
+                <button
+                  key={i}
+                  className="presetChip"
+                  onClick={() => handlePreset(p.prompt)}
+                  id={`preset-${i}`}
+                >
+                  {p.label}
                 </button>
               ))}
             </div>
           </div>
         ) : (
-          messages.filter((m) => m.type !== "welcome").map((msg) =>
-            msg.role === "user" ? (
-              <div key={msg.id} className="message user">
-                <div className="messageAvatar userAvatar">👤</div>
-                <div className="messageBubble userBubble">{msg.content}</div>
+          /* Messages */
+          <>
+            {messages.map((msg, i) => (
+              <div key={i} className={`message ${msg.role}`}>
+                {msg.role === "assistant" && (
+                  <div className="messageAvatar ai">F</div>
+                )}
+
+                {msg.role === "user" && (
+                  <>
+                    <div style={{ flex: 1 }} />
+                    <div className="messageBubble userBubble">{msg.content}</div>
+                    <div className="messageAvatar userAvatar">U</div>
+                  </>
+                )}
+
+                {msg.role === "assistant" && (
+                  <div className="messageBubble aiBubble">
+                    <div className="codeWrapper">
+                      <pre className="codeBlock">{msg.content}</pre>
+                      <div className="codeActions">
+                        <button
+                          className="codeBtn"
+                          onClick={() => copyCode(msg.content)}
+                          id={`copy-btn-${i}`}
+                        >
+                          Copy
+                        </button>
+                        <button
+                          className="codeBtn"
+                          onClick={() => downloadCode(msg.content)}
+                          id={`download-btn-${i}`}
+                        >
+                          Download
+                        </button>
+                        <button
+                          className="codeBtn sendFusion"
+                          onClick={() => sendToFusion(msg.content)}
+                          id={`send-fusion-btn-${i}`}
+                        >
+                          Send to Fusion
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {msg.role === "error" && (
+                  <div className="errorBubble">
+                    <span>!</span>
+                    <span>{msg.content}</span>
+                  </div>
+                )}
               </div>
-            ) : (
-              <AiMessage key={msg.id} msg={msg} />
-            )
-          )
+            ))}
+
+            {/* Generating indicator */}
+            {isGenerating && (
+              <div className="message assistant">
+                <div className="messageAvatar ai">F</div>
+                <div className="generatingCard">
+                  <div className="generatingPulse"></div>
+                  <div className="generatingText">
+                    {lastResult?.message || "Generating script..."}
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
+        <div ref={chatEndRef} />
       </div>
 
-      {/* Input Area */}
+      {/* ---- INPUT AREA ---- */}
       <div className="inputArea">
-        <div className="inputContainer">
-          <div className="inputControls">
-            <div className="autoSendToggle" onClick={() => setAutoSend((v) => !v)}>
-              <div className={`toggleTrack ${autoSend ? "active" : ""}`}>
-                <div className="toggleThumb" />
-              </div>
-              Auto-send to Fusion 360
+        <div className="inputControls">
+          <label className="autoSendToggle" id="auto-send-toggle">
+            <div
+              className={`toggleTrack ${autoSend ? "active" : ""}`}
+              onClick={() => setAutoSend(!autoSend)}
+            >
+              <div className="toggleThumb"></div>
             </div>
-            {!connected && !checking && (
-              <span style={{ fontSize: "12px", fontWeight: "600", color: "var(--error)", marginLeft: "auto", background: "var(--error-bg)", padding: "4px 10px", borderRadius: "var(--radius-full)" }}>
-                ⚠ Add-in tidak terdeteksi
-              </span>
+            <span>Auto-send to Fusion 360</span>
+          </label>
+        </div>
+
+        <div className="inputWrapper">
+          <textarea
+            ref={textareaRef}
+            className="inputField"
+            placeholder="Describe a 3D model... (Enter to send, Shift+Enter for new line)"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            rows={1}
+            id="prompt-input"
+          />
+          <button
+            className="sendBtn"
+            onClick={handleSubmit}
+            disabled={!input.trim() || isGenerating}
+            id="send-btn"
+          >
+            {isGenerating ? "..." : "→"}
+          </button>
+        </div>
+
+        {/* Status Bar */}
+        {lastResult && (
+          <div className={`statusBar ${lastResult.status}`}>
+            {lastResult.status === "success" && ""}
+            {lastResult.status === "error" && ""}
+            {lastResult.status === "sending" && ""}
+            {lastResult.message}
+            {lastResult.status === "error" && !isGenerating && (
+              <button className="retryBtn" onClick={handleRetry}>
+                Retry
+              </button>
             )}
           </div>
+        )}
 
-          <div className="inputWrapper">
-            <textarea
-              ref={textareaRef}
-              className="inputField"
-              value={prompt}
-              onChange={(e) => { setPrompt(e.target.value); autoResize(e); }}
-              onKeyDown={handleKey}
-              placeholder="Deskripsikan model 3D (cth: Buat kotak 5x5cm)..."
-              rows={1}
-              disabled={loading}
-            />
-            <button className="sendBtn" onClick={() => handleSend()} disabled={loading || !prompt.trim()}>
-              {loading ? "⟳" : "↑"}
-            </button>
+        {/* Template Match Indicator */}
+        {templateInfo && (
+          <div className="templateInfo">
+            <span className="templateIcon">&#9881;</span>
+            <span>Template: {templateInfo.template}</span>
           </div>
-
-          {loading && (
-            <div className="statusBar">
-              <div className="streamingDots"><span /><span /><span /></div>
-              <span>AI sedang memproses permintaan Anda...</span>
-            </div>
-          )}
-        </div>
+        )}
       </div>
-
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .stepItem:hover { border-color: var(--primary); box-shadow: var(--shadow-sm); }
-      `}</style>
     </div>
   );
 }
+
+export default App;

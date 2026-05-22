@@ -1,190 +1,219 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
-const BACKEND_URL = "http://localhost:3001";
 const WS_URL = "ws://localhost:3001/ws/generate";
+const API_URL = "http://localhost:3001";
 
-// ── Status koneksi Fusion ────────────────────────────────────────────────────
-export function useFusionStatus() {
-  const [connected, setConnected] = useState(false);
-  const [checking, setChecking] = useState(true);
-
-  const check = useCallback(async () => {
-    try {
-      const r = await fetch(`${BACKEND_URL}/fusion/status`, { signal: AbortSignal.timeout(3000) });
-      const d = await r.json();
-      setConnected(d.connected);
-    } catch {
-      setConnected(false);
-    } finally {
-      setChecking(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    check();
-    const interval = setInterval(check, 5000);
-    return () => clearInterval(interval);
-  }, [check]);
-
-  return { connected, checking };
-}
-
-// ── Main generate hook ───────────────────────────────────────────────────────
-export function useGenerate() {
-  const [messages, setMessages] = useState([
-    {
-      id: "welcome",
-      role: "ai",
-      type: "welcome",
-      content: "Siap! Deskripsiin model 3D yang mau kamu buat. Untuk model kompleks, gw akan otomatis pecah jadi beberapa langkah dan eksekusi satu per satu ke Fusion 360.",
-    },
-  ]);
-  const [loading, setLoading] = useState(false);
+/**
+ * Custom hook for Fusion AI — WebSocket streaming + Fusion status polling
+ */
+export function useFusion() {
   const wsRef = useRef(null);
+  const reconnectTimer = useRef(null);
 
-  const addMessage = useCallback((msg) => {
-    setMessages((prev) => [...prev, msg]);
-  }, []);
+  // Connection states
+  const [wsConnected, setWsConnected] = useState(false);
+  const [fusionConnected, setFusionConnected] = useState(false);
 
-  const updateMessage = useCallback((id, updater) => {
-    setMessages((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, ...updater(m) } : m))
-    );
-  }, []);
+  // Generation state
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [lastResult, setLastResult] = useState(null);
+  const [templateInfo, setTemplateInfo] = useState(null);
 
-  const generate = useCallback(({ prompt, autoSend }) => {
-    if (loading) return;
-    setLoading(true);
+  // Message history
+  const [messages, setMessages] = useState([]);
 
-    const userMsgId = `user-${Date.now()}`;
-    const aiMsgId = `ai-${Date.now()}`;
-
-    addMessage({ id: userMsgId, role: "user", type: "text", content: prompt });
-    addMessage({
-      id: aiMsgId,
-      role: "ai",
-      type: "processing",
-      status: "decomposing",
-      statusText: "Menganalisa prompt...",
-      steps: [],
-      currentStep: 0,
-      totalSteps: 0,
-    });
+  // ----- WebSocket connection -----
+  const connectWs = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
     const ws = new WebSocket(WS_URL);
-    wsRef.current = ws;
 
-    ws.onopen = () => ws.send(JSON.stringify({ prompt, autoSend }));
+    ws.onopen = () => {
+      setWsConnected(true);
+      console.log("[WS] Connected");
+    };
 
-    ws.onmessage = (e) => {
-      const data = JSON.parse(e.data);
+    ws.onclose = () => {
+      setWsConnected(false);
+      console.log("[WS] Disconnected — retrying in 3s");
+      reconnectTimer.current = setTimeout(connectWs, 3000);
+    };
+
+    ws.onerror = () => {
+      ws.close();
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
 
       switch (data.type) {
-        case "decomposing":
-          updateMessage(aiMsgId, (m) => ({
-            ...m,
-            statusText: data.message,
-          }));
+        case "start":
+          setIsGenerating(true);
+          setLastResult(null);
+          setTemplateInfo(null);
           break;
 
-        case "steps":
-          updateMessage(aiMsgId, (m) => ({
-            ...m,
-            totalSteps: data.steps.length,
-            steps: data.steps.map((s, i) => ({
-              index: i + 1,
-              label: s,
-              status: "pending",
-              code: "",
-              fusionResult: null,
-            })),
-          }));
+        case "generating":
+          setLastResult({ status: "sending", message: data.message });
           break;
 
-        case "step_start":
-          updateMessage(aiMsgId, (m) => ({
-            ...m,
-            currentStep: data.step,
-            statusText: data.message,
-            steps: m.steps.map((s) =>
-              s.index === data.step ? { ...s, status: "generating" } : s
-            ),
-          }));
+        case "validating":
+          setLastResult({ status: "sending", message: `Validating... (attempt ${data.attempt})` });
           break;
 
-        case "token":
-          updateMessage(aiMsgId, (m) => ({
-            ...m,
-            steps: m.steps.map((s) =>
-              s.index === data.step ? { ...s, code: s.code + data.content } : s
-            ),
-          }));
+        case "fixing":
+          setLastResult({ status: "sending", message: `Fixing syntax errors... (attempt ${data.attempt})` });
           break;
 
-        case "step_complete":
-          updateMessage(aiMsgId, (m) => ({
-            ...m,
-            steps: m.steps.map((s) =>
-              s.index === data.step ? { ...s, status: "sending", code: data.code } : s
-            ),
-          }));
+        case "template_match":
+          setTemplateInfo({ template: data.template, confidence: data.confidence });
+          setLastResult({ status: "sending", message: `Matched template: ${data.template}` });
+          break;
+
+        case "complete":
+          setMessages((prev) => [
+            ...prev,
+            { role: "assistant", content: data.code, timestamp: Date.now() },
+          ]);
           break;
 
         case "fusion_sending":
-          updateMessage(aiMsgId, (m) => ({
-            ...m,
-            statusText: data.message,
-          }));
+          setLastResult({ status: "sending", message: data.message });
           break;
 
         case "fusion_result":
-          updateMessage(aiMsgId, (m) => ({
-            ...m,
-            steps: m.steps.map((s) =>
-              s.index === data.step
-                ? { ...s, status: data.success ? "done" : "error", fusionResult: data }
-                : s
-            ),
-          }));
+          setLastResult({
+            status: data.success ? "success" : "error",
+            message: data.message,
+          });
           break;
 
         case "fusion_error":
-          updateMessage(aiMsgId, (m) => ({
-            ...m,
-            steps: m.steps.map((s) =>
-              s.index === data.step ? { ...s, status: "error", fusionResult: data } : s
-            ),
-          }));
+          setLastResult({ status: "error", message: data.message });
           break;
 
         case "done":
-          updateMessage(aiMsgId, (m) => ({
-            ...m,
-            type: "done",
-            statusText: data.message,
-          }));
-          setLoading(false);
+          setIsGenerating(false);
+          setLastResult((prev) => prev || { status: "success", message: data.message });
           break;
 
         case "error":
-          updateMessage(aiMsgId, (m) => ({
-            ...m,
-            type: "error",
-            statusText: data.message,
-          }));
-          setLoading(false);
+          setIsGenerating(false);
+          setLastResult({ status: "error", message: data.message });
+          setMessages((prev) => [
+            ...prev,
+            { role: "error", content: data.message, timestamp: Date.now() },
+          ]);
+          break;
+
+        default:
           break;
       }
     };
 
-    ws.onerror = () => {
-      updateMessage(aiMsgId, () => ({
-        type: "error",
-        statusText: "Koneksi ke backend gagal. Pastikan server jalan di port 3001.",
-      }));
-      setLoading(false);
-    };
-  }, [loading, addMessage, updateMessage]);
+    wsRef.current = ws;
+  }, []);
 
-  return { messages, loading, generate };
+  // ----- Clear chat history -----
+  const clearChat = useCallback(() => {
+    setMessages([]);
+    setLastResult(null);
+    setIsGenerating(false);
+  }, []);
+
+  // ----- Send prompt -----
+  const sendPrompt = useCallback(
+    (prompt, autoSend = false) => {
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        setLastResult({ status: "error", message: "WebSocket not connected" });
+        return;
+      }
+
+      // Add user message
+      setMessages((prev) => [
+        ...prev,
+        { role: "user", content: prompt, timestamp: Date.now() },
+      ]);
+
+      setIsGenerating(true);
+      setLastResult(null);
+
+      wsRef.current.send(JSON.stringify({ prompt, autoSend }));
+    },
+    []
+  );
+
+  // ----- Send script manually to Fusion -----
+  const sendToFusion = useCallback(async (code) => {
+    setLastResult({ status: "sending", message: "Sending to Fusion 360..." });
+    try {
+      const res = await fetch(`${API_URL}/fusion/status`);
+      const status = await res.json();
+
+      if (!status.connected) {
+        setLastResult({ status: "error", message: "Fusion 360 is not connected" });
+        return;
+      }
+
+      // Send via backend proxy — we'll use the addin URL directly via backend
+      const execRes = await fetch("http://localhost:8080", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+
+      const result = await execRes.json();
+      setLastResult({
+        status: result.success ? "success" : "error",
+        message: result.message,
+      });
+    } catch (err) {
+      setLastResult({
+        status: "error",
+        message: "Failed to reach Fusion 360: " + err.message,
+      });
+    }
+  }, []);
+
+  // ----- Fusion status polling -----
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const res = await fetch(`${API_URL}/fusion/status`);
+        const data = await res.json();
+        setFusionConnected(data.connected);
+      } catch {
+        setFusionConnected(false);
+      }
+    };
+
+    poll();
+    const interval = setInterval(poll, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // ----- WebSocket lifecycle -----
+  useEffect(() => {
+    connectWs();
+    return () => {
+      clearTimeout(reconnectTimer.current);
+      if (wsRef.current) {
+        wsRef.current.onclose = null; // prevent reconnect on unmount
+        wsRef.current.close();
+      }
+    };
+  }, [connectWs]);
+
+  return {
+    wsConnected,
+    fusionConnected,
+    isGenerating,
+    lastResult,
+    templateInfo,
+    messages,
+    sendPrompt,
+    sendToFusion,
+    setMessages,
+    clearChat,
+  };
 }

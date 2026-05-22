@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------
 // Fusion AI Generator — Backend Server
-// Express.js + Groq API (streaming) + WebSocket + Addin proxy
+// Express.js + MiMo API (streaming) + WebSocket + Addin proxy
 // ---------------------------------------------------------------------------
 
 import "dotenv/config";
@@ -8,203 +8,120 @@ import express from "express";
 import cors from "cors";
 import { WebSocketServer } from "ws";
 import http from "http";
-import Groq from "groq-sdk";
+import Anthropic from "@anthropic-ai/sdk";
+import { execFileSync } from "child_process";
+import { writeFileSync, unlinkSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
+import { findMatchingTemplate, extractParameters, fillTemplate } from "./masterPrompts.js";
 
 const PORT = process.env.PORT || 3001;
 const FUSION_ADDIN_URL = process.env.FUSION_ADDIN_URL || "http://localhost:8080";
 
 // ---------------------------------------------------------------------------
-// Groq client
+// MiMo client (Anthropic-compatible)
 // ---------------------------------------------------------------------------
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const anthropic = new Anthropic({
+  apiKey: process.env.MIMO_API_KEY,
+  baseURL: process.env.MIMO_BASE_URL || "https://token-plan-sgp.xiaomimimo.com/anthropic",
+});
 
 // ---------------------------------------------------------------------------
-// System prompt — strict Fusion 360 Python output
+// System prompt — strict Fusion 360 Python output with few-shot examples
 // ---------------------------------------------------------------------------
-const SYSTEM_PROMPT = `You are a Fusion 360 Python scripting expert. Your ONLY job is to output valid, executable Python code for the Fusion 360 API.
+const SYSTEM_PROMPT = `Fusion 360 Python API expert. Output ONLY raw Python code. No markdown.
+Variables available: adsk, app, ui, rootComp. Use them directly, never redefine.
+Units: cm. Start with try:, end with except.
 
-STRICT RULES:
-1. Output ONLY raw Python code. No markdown fences, no explanations, no comments about what the code does before or after.
-2. The code will be executed via exec() with these variables pre-injected into scope:
-   - adsk, adsk.core, adsk.fusion
-   - app (adsk.core.Application)
-   - ui (app.userInterface)
-   - design (adsk.fusion.Design — the active product)
-   - rootComp (design.rootComponent)
-3. Do NOT import adsk or call adsk.core.Application.get() — they are already available.
-4. Fusion 360 internal units are CENTIMETERS (cm). All dimensions must be in cm.
-   - If user says "5mm", convert to 0.5 cm.
-   - If user says "1 inch", convert to 2.54 cm.
-   - If user says "5cm", use 5.0 directly.
-   - If no unit is specified, assume cm.
-5. Always wrap the main logic in try/except and show errors via ui.messageBox().
-6. Use design.designType = adsk.fusion.DesignTypes.DirectDesignType when needed.
-7. Prefer creating sketches, profiles, and extrude features for solid bodies.
-8. Always call adsk.autoTerminate(False) at the start if doing UI operations.
+NEVER DO THESE (they cause errors):
+- NEVER use "design.rootComp" — does not exist! Use "rootComp" directly.
+- NEVER use "design" variable at all — it is not needed.
+- NEVER import adsk (pre-injected)
+- NEVER use rootComp.features.holeFeatures (use sketch circle + extrude cut instead)
+- NEVER create new components (Part Design mode = one component only)
 
-CRITICAL RULES TO AVOID COMMON ERRORS:
-- "Bad index parameter" error means sketch.profiles.item(0) failed — profile not formed. Always ensure sketch is CLOSED before accessing profiles.
-- For hexagon: NEVER draw 6 separate lines. Use a polygon via sketchCurves.sketchLines and close it properly, OR use a circumscribed polygon approach with sketchCurves.
-- Always verify sketch is closed: all line endpoints must connect exactly.
-- For complex shapes like hex, use this pattern:
-  import math
-  cx, cy, r = 0, 0, radius
-  points = [adsk.core.Point3D.create(cx + r*math.cos(math.pi/180*(60*i+30)), cy + r*math.sin(math.pi/180*(60*i+30)), 0) for i in range(6)]
-  lines = sketch.sketchCurves.sketchLines
-  for i in range(6):
-      lines.addByTwoPoints(points[i], points[(i+1)%6])
-- After drawing, always check: prof = sketch.profiles.item(0) — wrap in try/except
-- For multi-body (e.g. bolt head + shaft): create separate sketches on separate planes for each body
-- NEVER use extInput.setDirection() — it does not exist
-- For extrude direction use: extInput.setDistanceExtent(False, adsk.core.ValueInput.createByReal(value)) for one direction
-- For extrude downward (negative): extInput.setDistanceExtent(False, adsk.core.ValueInput.createByReal(-value))
-- NEVER use rootComp.occurrences.component — rootComp IS the component, use it directly
-- NEVER use rootComp.occurrences for geometry access — only use rootComp.sketches, rootComp.features, rootComp.constructionPlanes directly
-- For offset plane (e.g. shaft below head): use rootComp.constructionPlanes with createInput + setByOffset
+ALWAYS DO THESE:
+1. Start with try: end with except Exception as e:
+2. All dimensions in cm (10mm = 1cm)
+3. Use adsk.core.Point3D.create(x, y, z) for points
+4. Use rootComp.sketches.add(plane) for sketches
+5. Use rootComp.features.extrudeFeatures for extrude
+6. New body: NewBodyFeatureOperation, Cut: CutFeatureOperation, Join: JoinFeatureOperation
+7. Create holes: draw circle on sketch, extrude with CutFeatureOperation
+8. For cones/tapers: use extrude with extInput.taperAngle = ValueInput.createByReal(-radians). NEVER use revolveFeatures.
+9. NEVER use revolveFeatures — it does not work in this environment. Use extrude with taperAngle instead.
+10. NEVER use sweepFeatures — it does not work in this environment. Build shapes from extrude/cut operations.
 
-CORRECT FUSION 360 API METHODS (follow exactly):
-- Rectangle : sketch.sketchCurves.sketchLines.addTwoPointRectangle(p1, p2)
-- Circle    : sketch.sketchCurves.sketchCircles.addByCenterRadius(center, radius) — NEVER .add()
-- Line      : sketch.sketchCurves.sketchLines.addByTwoPoints(p1, p2)
-- Extrude   : extInput = rootComp.features.extrudeFeatures.createInput(profile, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
-              extInput.setDistanceExtent(False, adsk.core.ValueInput.createByReal(value))
-              rootComp.features.extrudeFeatures.add(extInput)
-- Revolve   : revInput = rootComp.features.revolveFeatures.createInput(profile, axis, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
-              revInput.setAngleExtent(False, adsk.core.ValueInput.createByReal(math.radians(360)))
-              rootComp.features.revolveFeatures.add(revInput)
-- Fillet    : edges = adsk.core.ObjectCollection.create()
-              edges.add(body.faces.item(0).edges.item(0))
-              filletInput = rootComp.features.filletFeatures.createInput()
-              filletInput.addConstantRadiusEdgeSet(edges, adsk.core.ValueInput.createByReal(radius), True)
-              rootComp.features.filletFeatures.add(filletInput)
-- Chamfer   : edges = adsk.core.ObjectCollection.create()
-              edges.add(body.faces.item(0).edges.item(0))
-              chamferInput = rootComp.features.chamferFeatures.createInput(edges, True)
-              chamferInput.setToEqualDistance(adsk.core.ValueInput.createByReal(value))
-              rootComp.features.chamferFeatures.add(chamferInput)
-              NOTE: createInput needs (edges, isTangentChain) — 2 required args
-- Shell     : faces = adsk.core.ObjectCollection.create()
-              faces.add(body.faces.item(0))
-              shellInput = rootComp.features.shellFeatures.createInput(faces, False)
-              shellInput.insideThickness = adsk.core.ValueInput.createByReal(thickness)
-              rootComp.features.shellFeatures.add(shellInput)
-- Hole      : holeInput = rootComp.features.holeFeatures.createSimpleInput(adsk.core.ValueInput.createByReal(diameter))
-              holeInput.setPositionByPoint(sketch, centerPoint)
-              rootComp.features.holeFeatures.add(holeInput)
-- Thread    : threadFace = body.faces.item(0)
-              threadInfo = rootComp.features.threadFeatures.threadDataQuery.recommendThreadData(threadFace)
-              threadInput = rootComp.features.threadFeatures.createInput(threadFace, threadInfo)
-              rootComp.features.threadFeatures.add(threadInput)
-- Mirror    : mirrorEntities = adsk.core.ObjectCollection.create()
-              mirrorEntities.add(extFeature)
-              mirrorInput = rootComp.features.mirrorFeatures.createInput(mirrorEntities, mirrorPlane)
-              rootComp.features.mirrorFeatures.add(mirrorInput)
-- Pattern   : inputEntities = adsk.core.ObjectCollection.create()
-              inputEntities.add(body)
-              patternInput = rootComp.features.rectangularPatternFeatures.createInput(
-                  inputEntities, xAxis,
-                  adsk.core.ValueInput.createByReal(countX),
-                  adsk.core.ValueInput.createByReal(spacingX),
-                  adsk.fusion.PatternDistanceType.SpacingPatternDistanceType)
-              rootComp.features.rectangularPatternFeatures.add(patternInput)
-              NOTE: NEVER use PatternDistanceType.ModelParameter — use SpacingPatternDistanceType
-- Move      : bodies = adsk.core.ObjectCollection.create()
-              bodies.add(body)
-              transform = adsk.core.Matrix3D.create()
-              transform.translation = adsk.core.Vector3D.create(x, y, z)
-              moveInput = rootComp.features.moveFeatures.createInput(bodies, transform)
-              rootComp.features.moveFeatures.add(moveInput)
-              NOTE: createInput needs (bodies, transform) — 2 required args
-- Sweep     : sweepInput = rootComp.features.sweepFeatures.createInput(profile, path, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
-              rootComp.features.sweepFeatures.add(sweepInput)
-- Loft      : loftInput = rootComp.features.loftFeatures.createInput(adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
-              loftInput.loftSections.add(profile1)
-              loftInput.loftSections.add(profile2)
-              rootComp.features.loftFeatures.add(loftInput)
-- Sphere    : NEVER use rootComp.features.sphereFeatures.createInput() — it does NOT exist!
-              Create sphere via revolve: draw semicircle on sketch, revolve 360 degrees around diameter axis:
-              sk = rootComp.sketches.add(rootComp.xYConstructionPlane)
-              lines = sk.sketchCurves.sketchLines
-              arcs = sk.sketchCurves.sketchArcs
-              center = adsk.core.Point3D.create(0, 0, 0)
-              top = adsk.core.Point3D.create(0, radius, 0)
-              bot = adsk.core.Point3D.create(0, -radius, 0)
-              arcs.addByCenterStartEnd(center, top, bot)
-              lines.addByTwoPoints(bot, top)
-              prof = sk.profiles.item(0)
-              axisLine = sk.sketchCurves.sketchLines.item(sk.sketchCurves.sketchLines.count - 1)
-              revInput = rootComp.features.revolveFeatures.createInput(prof, axisLine, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
-              revInput.setAngleExtent(False, adsk.core.ValueInput.createByReal(math.radians(360)))
-              rootComp.features.revolveFeatures.add(revInput)
-- BRepEdge  : NEVER use edge.loop — it does NOT exist!
-              To get all edges of a face: face.edges (returns BRepEdges collection)
-              To get edges of a body: body.edges
-              To loop edges: for edge in body.edges: ...
-              To get specific edge by index: body.edges.item(0) Always use small radius (max 10-20% of smallest dimension). If fillet fails, skip it and inform user via ui.messageBox.
-- Invalid input points: sketch points must be valid 3D points. Always use adsk.core.Point3D.create(x, y, z) with explicit float values. Never pass None or invalid coordinates.
-              toolBodies.add(toolBody)
-              combineInput = rootComp.features.combineFeatures.createInput(targetBody, toolBodies)
-              combineInput.operation = adsk.fusion.FeatureOperations.JoinFeatureOperation
-              rootComp.features.combineFeatures.add(combineInput)
-              NOTE: createInput needs (targetBody, toolBodies) — toolBodies must be ObjectCollection
-- SplitBody : splitInput = rootComp.features.splitBodyFeatures.createInput(bodyToSplit, splittingTool, True)
-              rootComp.features.splitBodyFeatures.add(splitInput)
-              NOTE: createInput needs (bodyToSplit, splittingTool, isSplittingToolExtended) — 3 required args
-- Get body  : body = rootComp.bRepBodies.item(0) — NEVER rootComp.bodies or component.bodies
-- Point3D   : adsk.core.Point3D.create(x, y, z)
-- ValueInput: adsk.core.ValueInput.createByReal(value)
-- Collection: adsk.core.ObjectCollection.create() then .add() items
-
-EXAMPLE — HEX BOLT (head diameter 13mm=1.3cm, head height 5mm=0.5cm, shaft diameter 8mm=0.8cm, shaft length 30mm=3.0cm):
+EXAMPLE 1 - Simple Box:
 try:
-    # --- Hex head (EXACTLY 6 points, EXACTLY 6 lines) ---
-    xyPlane = rootComp.xYConstructionPlane
-    headSketch = rootComp.sketches.add(xyPlane)
-    r = 0.65  # half of 1.3cm
-    pts = []
-    for i in range(6):
-        angle = math.radians(60 * i)
-        pts.append(adsk.core.Point3D.create(r * math.cos(angle), r * math.sin(angle), 0))
-    lines = headSketch.sketchCurves.sketchLines
-    for i in range(6):
-        lines.addByTwoPoints(pts[i], pts[(i + 1) % 6])
-    headProf = headSketch.profiles.item(0)
-    extHeadInput = rootComp.features.extrudeFeatures.createInput(headProf, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
-    extHeadInput.setDistanceExtent(False, adsk.core.ValueInput.createByReal(0.5))
-    rootComp.features.extrudeFeatures.add(extHeadInput)
-
-    # --- Shaft ---
-    planes = rootComp.constructionPlanes
-    planeInput = planes.createInput()
-    planeInput.setByOffset(xyPlane, adsk.core.ValueInput.createByReal(0.5))
-    shaftPlane = planes.add(planeInput)
-    shaftSketch = rootComp.sketches.add(shaftPlane)
-    shaftSketch.sketchCurves.sketchCircles.addByCenterRadius(
-        adsk.core.Point3D.create(0, 0, 0), 0.4)
-    shaftProf = shaftSketch.profiles.item(0)
-    extShaftInput = rootComp.features.extrudeFeatures.createInput(shaftProf, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
-    extShaftInput.setDistanceExtent(False, adsk.core.ValueInput.createByReal(3.0))
-    rootComp.features.extrudeFeatures.add(extShaftInput)
-    ui.messageBox("Hex bolt created!")
+    sketch = rootComp.sketches.add(rootComp.xYConstructionPlane)
+    sketch.sketchCurves.sketchLines.addTwoPointRectangle(
+        adsk.core.Point3D.create(0, 0, 0),
+        adsk.core.Point3D.create(5, 3, 0)
+    )
+    prof = sketch.profiles.item(0)
+    extInput = rootComp.features.extrudeFeatures.createInput(prof, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
+    extInput.setDistanceExtent(False, adsk.core.ValueInput.createByReal(2))
+    rootComp.features.extrudeFeatures.add(extInput)
+    ui.messageBox("Box created!")
 except Exception as e:
     ui.messageBox(f"Error: {str(e)}")
 
-EXAMPLE OUTPUT FORMAT (for "create a 5cm cube"):
+EXAMPLE 2 - Cylinder with Hole:
 try:
-    sketches = rootComp.sketches
-    xyPlane = rootComp.xYConstructionPlane
-    sketch = sketches.add(xyPlane)
-    lines = sketch.sketchCurves.sketchLines
-    lines.addTwoPointRectangle(
-        adsk.core.Point3D.create(0, 0, 0),
-        adsk.core.Point3D.create(5, 5, 0)
-    )
+    sketch = rootComp.sketches.add(rootComp.xYConstructionPlane)
+    sketch.sketchCurves.sketchCircles.addByCenterRadius(adsk.core.Point3D.create(0, 0, 0), 3)
     prof = sketch.profiles.item(0)
-    extrudes = rootComp.features.extrudeFeatures
-    extInput = extrudes.createInput(prof, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
-    distance = adsk.core.ValueInput.createByReal(5)
-    extInput.setDistanceExtent(False, distance)
-    extrudes.add(extInput)
+    extInput = rootComp.features.extrudeFeatures.createInput(prof, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
+    extInput.setDistanceExtent(False, adsk.core.ValueInput.createByReal(5))
+    rootComp.features.extrudeFeatures.add(extInput)
+    holeSketch = rootComp.sketches.add(rootComp.xYConstructionPlane)
+    holeSketch.sketchCurves.sketchCircles.addByCenterRadius(adsk.core.Point3D.create(0, 0, 0), 1)
+    holeProf = holeSketch.profiles.item(0)
+    holeCut = rootComp.features.extrudeFeatures.createInput(holeProf, adsk.fusion.FeatureOperations.CutFeatureOperation)
+    holeCut.setDistanceExtent(False, adsk.core.ValueInput.createByReal(5))
+    rootComp.features.extrudeFeatures.add(holeCut)
+    ui.messageBox("Cylinder with hole created!")
+except Exception as e:
+    ui.messageBox(f"Error: {str(e)}")
+
+EXAMPLE 3 - Cone (taper extrude):
+try:
+    import math
+    base_r = 2.5
+    top_r = 1.25
+    h = 6
+    taper_deg = math.degrees(math.atan2(base_r - top_r, h))
+    sketch = rootComp.sketches.add(rootComp.xYConstructionPlane)
+    sketch.sketchCurves.sketchCircles.addByCenterRadius(adsk.core.Point3D.create(0, 0, 0), base_r)
+    prof = sketch.profiles.item(0)
+    extInput = rootComp.features.extrudeFeatures.createInput(prof, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
+    extInput.setDistanceExtent(False, adsk.core.ValueInput.createByReal(h))
+    extInput.taperAngle = adsk.core.ValueInput.createByReal(-math.radians(taper_deg))
+    rootComp.features.extrudeFeatures.add(extInput)
+    ui.messageBox("Cone created!")
+except Exception as e:
+    ui.messageBox(f"Error: {str(e)}")
+
+EXAMPLE 4 - L-Bracket with Holes:
+try:
+    sketch = rootComp.sketches.add(rootComp.xYConstructionPlane)
+    lines = sketch.sketchCurves.sketchLines
+    pts = [
+        adsk.core.Point3D.create(0, 0, 0),
+        adsk.core.Point3D.create(5, 0, 0),
+        adsk.core.Point3D.create(5, 0.5, 0),
+        adsk.core.Point3D.create(0.5, 0.5, 0),
+        adsk.core.Point3D.create(0.5, 5, 0),
+        adsk.core.Point3D.create(0, 5, 0),
+    ]
+    for i in range(len(pts)):
+        lines.addByTwoPoints(pts[i], pts[(i+1) % len(pts)])
+    prof = sketch.profiles.item(0)
+    extInput = rootComp.features.extrudeFeatures.createInput(prof, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
+    extInput.setDistanceExtent(False, adsk.core.ValueInput.createByReal(1))
+    rootComp.features.extrudeFeatures.add(extInput)
+    ui.messageBox("L-Bracket created!")
 except Exception as e:
     ui.messageBox(f"Error: {str(e)}")`;
 
@@ -248,15 +165,7 @@ app.post("/generate", async (req, res) => {
   }
 
   try {
-    const completion = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: prompt },
-      ],
-    });
-
-    const code = completion.choices[0]?.message?.content || "";
+    const code = await generateValidatedCode(prompt);
     res.json({ code });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -264,7 +173,7 @@ app.post("/generate", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Helper: strip markdown fences dari output Groq
+// Helper: strip markdown fences dari output MiMo
 // ---------------------------------------------------------------------------
 function stripMarkdown(code) {
   return code
@@ -274,72 +183,153 @@ function stripMarkdown(code) {
 }
 
 // ---------------------------------------------------------------------------
-// Helper: fix indentasi — normalize ke 4 spaces
+// Helper: kirim script ke Fusion addin
 // ---------------------------------------------------------------------------
-function fixIndentation(code) {
-  const lines = code.split("\n");
-  const fixed = lines.map((line) => {
-    // Convert tabs to 4 spaces
-    return line.replace(/\t/g, "    ");
-  });
-  return fixed.join("\n");
-}
-
-// ---------------------------------------------------------------------------
-// Helper: pecah prompt kompleks jadi array of steps via Groq
-// ---------------------------------------------------------------------------
-async function decomposePrompt(prompt) {
-  const completion = await groq.chat.completions.create({
-    model: "llama-3.3-70b-versatile",
-    messages: [
-      {
-        role: "system",
-        content: `You are a 3D modeling planning expert for Fusion 360.
-Your job is to break down a complex 3D modeling request into simple sequential steps.
-Each step must be ONE simple geometry operation (create a shape, add a feature, etc).
-Output ONLY a valid JSON array of strings. No explanation, no markdown, no extra text.
-Example output: ["Create hexagon head 13mm diameter 5mm height", "Create cylinder shaft 8mm diameter 30mm length centered below head", "Add chamfer 1mm on bottom edge of shaft"]`
-      },
-      {
-        role: "user",
-        content: `Break this into simple sequential Fusion 360 modeling steps: ${prompt}`
-      }
-    ],
-  });
-
-  const raw = stripMarkdown(completion.choices[0]?.message?.content || "[]");
+async function sendToFusion(code) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
   try {
-    const steps = JSON.parse(raw);
-    return Array.isArray(steps) ? steps : [prompt];
-  } catch {
-    return [prompt]; // fallback ke prompt original kalau parse gagal
+    const res = await fetch(FUSION_ADDIN_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+      signal: controller.signal,
+    });
+    return res.json();
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
 // ---------------------------------------------------------------------------
-// Helper: generate script untuk satu step
+// Helper: validate Python syntax via ast.parse (temp file approach)
 // ---------------------------------------------------------------------------
-async function generateScript(stepPrompt) {
-  const completion = await groq.chat.completions.create({
-    model: "llama-3.3-70b-versatile",
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: stepPrompt },
-    ],
-  });
-  return stripMarkdown(completion.choices[0]?.message?.content || "");
+function validatePython(code) {
+  const tmpFile = join(tmpdir(), `mimo_validate_${Date.now()}.py`);
+  try {
+    writeFileSync(tmpFile, code, "utf-8");
+    const script = `import ast, sys; ast.parse(open(sys.argv[1], encoding='utf-8').read())`;
+    execFileSync("python", ["-c", script, tmpFile], { timeout: 5000, stdio: "pipe" });
+    return { valid: true };
+  } catch (e) {
+    const stderr = e.stderr?.toString() || e.message;
+    const match = stderr.match(/SyntaxError: (.+?)(?:\s*\((.+?)\))?$/m) || stderr.match(/IndentationError: (.+)/m);
+    return {
+      valid: false,
+      error: match ? match[0] : "Unknown syntax error",
+    };
+  } finally {
+    try { unlinkSync(tmpFile); } catch {}
+  }
 }
 
 // ---------------------------------------------------------------------------
-// Helper: kirim script ke Fusion addin
+// Helper: ask MiMo to fix broken code
 // ---------------------------------------------------------------------------
-async function sendToFusion(code) {
-  const fusionRes = await fetch(FUSION_ADDIN_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code }),
+async function fixCodeWithMiMo(brokenCode, syntaxError) {
+  const message = await anthropic.messages.create({
+    model: process.env.MIMO_MODEL || "mimo-v2.5-pro",
+    max_tokens: 16384,
+    thinking: { type: "disabled" },
+    system: SYSTEM_PROMPT,
+    messages: [
+      {
+        role: "user",
+        content: `The following Python code has a syntax error. Fix ONLY the syntax error, keep all logic the same. Output ONLY the corrected raw Python code.\n\nSyntax Error: ${syntaxError}\n\nBroken Code:\n${brokenCode}`,
+      },
+    ],
   });
-  return fusionRes.json();
+  const textBlock = message.content.find((b) => b.type === "text");
+  const fixed = stripMarkdown(textBlock?.text || "");
+  if (!fixed.trim()) {
+    console.log("[FIX] Warning: MiMo returned empty fix, returning original code");
+    return brokenCode;
+  }
+  return fixed;
+}
+
+// ---------------------------------------------------------------------------
+// Helper: generate from template (hybrid approach)
+// ---------------------------------------------------------------------------
+function generateFromTemplate(prompt) {
+  const match = findMatchingTemplate(prompt);
+  if (!match) {
+    console.log(`[TEMPLATE] No match for: "${prompt}"`);
+    return null;
+  }
+
+  const { template, confidence } = match;
+  const params = extractParameters(prompt, template);
+  const code = fillTemplate(template, params);
+
+  console.log(`[TEMPLATE] Matched: ${template.label} (confidence: ${confidence})`);
+  console.log(`[TEMPLATE] Params:`, params);
+  console.log(`[TEMPLATE] Code length: ${code.length} chars, ${code.split("\n").length} lines`);
+
+  return { code, template: template.label, confidence };
+}
+
+// ---------------------------------------------------------------------------
+// Helper: generate + validate + auto-fix pipeline
+// ---------------------------------------------------------------------------
+const MAX_RETRIES = 2;
+
+async function generateValidatedCode(prompt, ws = null) {
+  let fullCode = "";
+
+  const enhancedPrompt = `Write a Fusion 360 Python script for: ${prompt}`;
+
+  const stream = anthropic.messages.stream({
+    model: process.env.MIMO_MODEL || "mimo-v2.5-pro",
+    max_tokens: 16384,
+    thinking: { type: "disabled" },
+    system: SYSTEM_PROMPT,
+    messages: [{ role: "user", content: enhancedPrompt }],
+  });
+
+  let inputTokens = 0;
+  let outputTokens = 0;
+
+  for await (const event of stream) {
+    if (event.type === "message_start" && event.message?.usage) {
+      inputTokens = event.message.usage.input_tokens || 0;
+    }
+    if (event.type === "message_delta" && event.usage) {
+      outputTokens = event.usage.output_tokens || 0;
+    }
+    if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+      fullCode += event.delta.text || "";
+    }
+  }
+
+  console.log(`[TOKENS] input=${inputTokens} output=${outputTokens} total=${inputTokens + outputTokens}`);
+
+  fullCode = stripMarkdown(fullCode);
+
+  if (!fullCode.trim()) {
+    console.log("[GENERATE] WARNING: Empty code after all extraction attempts");
+    throw new Error("AI returned empty code. Try a simpler prompt or retry.");
+  }
+
+  // Validate + auto-fix loop
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const result = validatePython(fullCode);
+    if (result.valid) return fullCode;
+
+    console.log(`[VALIDATE] Syntax error (attempt ${attempt + 1}/${MAX_RETRIES + 1}): ${result.error}`);
+    if (ws && ws.readyState === ws.OPEN) {
+      ws.send(JSON.stringify({ type: "validating", attempt: attempt + 1, error: result.error }));
+    }
+
+    if (attempt < MAX_RETRIES) {
+      fullCode = await fixCodeWithMiMo(fullCode, result.error);
+      if (ws && ws.readyState === ws.OPEN) {
+        ws.send(JSON.stringify({ type: "fixing", attempt: attempt + 1 }));
+      }
+    }
+  }
+
+  return fullCode;
 }
 
 // ---------------------------------------------------------------------------
@@ -367,88 +357,77 @@ wss.on("connection", (ws) => {
       return;
     }
 
+    console.log(`\n[REQUEST] Prompt: "${prompt}"`);
+    console.log(`[REQUEST] Auto-send: ${autoSend}`);
+
     ws.send(JSON.stringify({ type: "start" }));
 
     try {
-      // Step 1: Decompose prompt jadi beberapa step
-      ws.send(JSON.stringify({ type: "decomposing", message: "Memecah prompt jadi langkah-langkah..." }));
-      const steps = await decomposePrompt(prompt);
-      ws.send(JSON.stringify({ type: "steps", steps }));
+      // Try template first (hybrid approach)
+      let code = "";
+      let usedTemplate = false;
 
-      // Step 2: Loop tiap step — generate script + kirim ke Fusion
-      for (let i = 0; i < steps.length; i++) {
-        const step = steps[i];
-        const stepNum = i + 1;
-        const totalSteps = steps.length;
-
-        // Kasih tau frontend lagi di step berapa
+      const templateResult = generateFromTemplate(prompt);
+      if (templateResult) {
         ws.send(JSON.stringify({
-          type: "step_start",
-          step: stepNum,
-          total: totalSteps,
-          message: `Step ${stepNum}/${totalSteps}: ${step}`,
+          type: "generating",
+          message: `Using template: ${templateResult.template}...`,
         }));
 
-        // Generate script untuk step ini
-        ws.send(JSON.stringify({ type: "generating", step: stepNum, message: `Generating script untuk step ${stepNum}...` }));
-        let code = "";
-
-        const stream = await groq.chat.completions.create({
-          model: "llama-3.3-70b-versatile",
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            { role: "user", content: step },
-          ],
-          stream: true,
-        });
-
-        for await (const chunk of stream) {
-          const text = chunk.choices[0]?.delta?.content || "";
-          if (text) {
-            code += text;
-            if (ws.readyState === ws.OPEN) {
-              ws.send(JSON.stringify({ type: "token", step: stepNum, content: text }));
-            }
-          }
-        }
-
-        code = stripMarkdown(code);
-      code = fixIndentation(code);
-
-        ws.send(JSON.stringify({ type: "step_complete", step: stepNum, code }));
-
-        // Kirim ke Fusion kalau autoSend
-        if (autoSend && code.trim()) {
-          ws.send(JSON.stringify({ type: "fusion_sending", step: stepNum, message: `Mengirim step ${stepNum} ke Fusion 360...` }));
-          try {
-            const result = await sendToFusion(code);
-            ws.send(JSON.stringify({
-              type: "fusion_result",
-              step: stepNum,
-              success: result.success,
-              message: result.message,
-            }));
-
-            // Kalau step gagal di Fusion, stop dan kasih tau user
-            if (!result.success) {
-              ws.send(JSON.stringify({
-                type: "error",
-                message: `Step ${stepNum} gagal di Fusion: ${result.message}`,
-              }));
-              break;
-            }
-          } catch (fusionErr) {
-            ws.send(JSON.stringify({
-              type: "fusion_error",
-              step: stepNum,
-              message: "Cannot reach Fusion 360 addin: " + fusionErr.message,
-            }));
-            break;
-          }
+        // Validate template output
+        const validation = validatePython(templateResult.code);
+        if (validation.valid) {
+          code = templateResult.code;
+          usedTemplate = true;
+          ws.send(JSON.stringify({
+            type: "template_match",
+            template: templateResult.template,
+            confidence: templateResult.confidence,
+          }));
+        } else {
+          console.log(`[TEMPLATE] Validation failed, falling back to AI: ${validation.error}`);
         }
       }
 
-      ws.send(JSON.stringify({ type: "done", message: "Semua step selesai!" }));
+      // Fallback to MiMo AI generation
+      if (!code) {
+        ws.send(JSON.stringify({ type: "generating", message: "Generating script..." }));
+        try {
+          code = await generateValidatedCode(prompt, ws);
+        } catch (genErr) {
+          console.log(`[ERROR] Generation failed: ${genErr.message}`);
+          ws.send(JSON.stringify({ type: "error", message: genErr.message }));
+          return;
+        }
+      }
+
+      console.log(`[CODE] ${usedTemplate ? "Template" : "AI"} | ${code.split("\n").length} lines, ${code.length} chars`);
+      console.log(`[CODE] First 3 lines: ${code.split("\n").slice(0, 3).join(" | ")}`);
+
+      ws.send(JSON.stringify({ type: "complete", code }));
+
+      // Send to Fusion if auto-send
+      if (autoSend && code.trim()) {
+        ws.send(JSON.stringify({ type: "fusion_sending", message: "Sending to Fusion 360..." }));
+        try {
+          const result = await sendToFusion(code);
+          console.log(`[FUSION] Success: ${result.success}, Message: ${result.message}`);
+          ws.send(JSON.stringify({
+            type: "fusion_result",
+            success: result.success,
+            message: result.message,
+          }));
+          if (!result.success) {
+            console.log(`[FUSION] FAILED — full error: ${JSON.stringify(result)}`);
+            ws.send(JSON.stringify({ type: "error", message: `Fusion error: ${result.message}` }));
+          }
+        } catch (fusionErr) {
+          console.log(`[FUSION] Exception: ${fusionErr.message}`);
+          ws.send(JSON.stringify({ type: "fusion_error", message: fusionErr.message }));
+        }
+      }
+
+      ws.send(JSON.stringify({ type: "done", message: "Done!" }));
 
     } catch (err) {
       if (ws.readyState === ws.OPEN) {
@@ -466,7 +445,8 @@ wss.on("connection", (ws) => {
 // Start server
 // ---------------------------------------------------------------------------
 server.listen(PORT, () => {
-  console.log(`\n🚀 Fusion AI Backend running on http://localhost:${PORT}`);
-  console.log(`   WebSocket endpoint: ws://localhost:${PORT}/ws/generate`);
-  console.log(`   Fusion addin target: ${FUSION_ADDIN_URL}\n`);
+  console.log(`\n🚀 Fusion AI Backend v2.0 — ${new Date().toISOString()}`);
+  console.log(`   http://localhost:${PORT}`);
+  console.log(`   WebSocket: ws://localhost:${PORT}/ws/generate`);
+  console.log(`   Fusion addin: ${FUSION_ADDIN_URL}\n`);
 });
