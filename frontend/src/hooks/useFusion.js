@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
-const WS_URL = "ws://localhost:3001/ws/generate";
-const API_URL = "http://localhost:3001";
+const WS_URL = `ws://${window.location.hostname}:3001/ws/generate`;
+const API_URL = ""; // relative URLs go through Vite proxy
+const GENERATION_TIMEOUT_MS = 130000; // slightly longer than backend 120s
 
 /**
  * Custom hook for Fusion AI — WebSocket streaming + Fusion status polling
@@ -9,6 +10,7 @@ const API_URL = "http://localhost:3001";
 export function useFusion() {
   const wsRef = useRef(null);
   const reconnectTimer = useRef(null);
+  const generationTimer = useRef(null);
 
   // Connection states
   const [wsConnected, setWsConnected] = useState(false);
@@ -17,7 +19,6 @@ export function useFusion() {
   // Generation state
   const [isGenerating, setIsGenerating] = useState(false);
   const [lastResult, setLastResult] = useState(null);
-  const [templateInfo, setTemplateInfo] = useState(null);
 
   // Message history
   const [messages, setMessages] = useState([]);
@@ -50,7 +51,12 @@ export function useFusion() {
         case "start":
           setIsGenerating(true);
           setLastResult(null);
-          setTemplateInfo(null);
+          // Start generation timeout
+          clearTimeout(generationTimer.current);
+          generationTimer.current = setTimeout(() => {
+            setIsGenerating(false);
+            setLastResult({ status: "error", message: "Generation timed out. Please try again." });
+          }, GENERATION_TIMEOUT_MS);
           break;
 
         case "generating":
@@ -63,11 +69,6 @@ export function useFusion() {
 
         case "fixing":
           setLastResult({ status: "sending", message: `Fixing syntax errors... (attempt ${data.attempt})` });
-          break;
-
-        case "template_match":
-          setTemplateInfo({ template: data.template, confidence: data.confidence });
-          setLastResult({ status: "sending", message: `Matched template: ${data.template}` });
           break;
 
         case "complete":
@@ -93,11 +94,13 @@ export function useFusion() {
           break;
 
         case "done":
+          clearTimeout(generationTimer.current);
           setIsGenerating(false);
           setLastResult((prev) => prev || { status: "success", message: data.message });
           break;
 
         case "error":
+          clearTimeout(generationTimer.current);
           setIsGenerating(false);
           setLastResult({ status: "error", message: data.message });
           setMessages((prev) => [
@@ -119,6 +122,7 @@ export function useFusion() {
     setMessages([]);
     setLastResult(null);
     setIsGenerating(false);
+    clearTimeout(generationTimer.current);
   }, []);
 
   // ----- Send prompt -----
@@ -143,24 +147,40 @@ export function useFusion() {
     []
   );
 
-  // ----- Send script manually to Fusion -----
+  // ----- Send script manually to Fusion (via backend proxy) -----
   const sendToFusion = useCallback(async (code) => {
     setLastResult({ status: "sending", message: "Sending to Fusion 360..." });
     try {
-      const res = await fetch(`${API_URL}/fusion/status`);
-      const status = await res.json();
-
-      if (!status.connected) {
-        setLastResult({ status: "error", message: "Fusion 360 is not connected" });
-        return;
-      }
-
-      // Send via backend proxy — we'll use the addin URL directly via backend
-      const execRes = await fetch("http://localhost:8080", {
+      const url = `${API_URL}/fusion/send`;
+      console.log("[FUSION] Sending to:", url);
+      const execRes = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code }),
       });
+
+      console.log("[FUSION] Response status:", execRes.status, "content-type:", execRes.headers.get("content-type"));
+
+      if (!execRes.ok) {
+        const text = await execRes.text();
+        console.error("[FUSION] Error response:", text.substring(0, 200));
+        setLastResult({
+          status: "error",
+          message: `Server error (${execRes.status}): ${text.substring(0, 100)}`,
+        });
+        return;
+      }
+
+      const contentType = execRes.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        const text = await execRes.text();
+        console.error("[FUSION] Non-JSON response:", text.substring(0, 200));
+        setLastResult({
+          status: "error",
+          message: `Server returned non-JSON (${contentType}). Is the backend running on port 3001?`,
+        });
+        return;
+      }
 
       const result = await execRes.json();
       setLastResult({
@@ -168,6 +188,7 @@ export function useFusion() {
         message: result.message,
       });
     } catch (err) {
+      console.error("[FUSION] Fetch error:", err);
       setLastResult({
         status: "error",
         message: "Failed to reach Fusion 360: " + err.message,
@@ -197,6 +218,7 @@ export function useFusion() {
     connectWs();
     return () => {
       clearTimeout(reconnectTimer.current);
+      clearTimeout(generationTimer.current);
       if (wsRef.current) {
         wsRef.current.onclose = null; // prevent reconnect on unmount
         wsRef.current.close();
@@ -209,7 +231,6 @@ export function useFusion() {
     fusionConnected,
     isGenerating,
     lastResult,
-    templateInfo,
     messages,
     sendPrompt,
     sendToFusion,

@@ -1,7 +1,11 @@
+// ==========================================================================
+// REFERENCE ONLY — This file is not imported by index.js.
+// It is kept as a knowledge base of Fusion 360 Python patterns.
+// The AI generation pipeline is the sole code generation path.
+// ==========================================================================
+
 // ---------------------------------------------------------------------------
-// Master Prompts — Hybrid Template Library for Fusion 360
-// Each template is a validated, working Fusion 360 Python script.
-// Parameters are extracted from user prompts via regex.
+// Master Prompts — Template Library for Fusion 360 (Reference)
 // ---------------------------------------------------------------------------
 
 export const MASTER_PROMPTS = [
@@ -564,7 +568,10 @@ except Exception as e:
     wireProf = startSketch.profiles.item(0)
 
     # Sweep along path
-    sweepInput = rootComp.features.sweepFeatures.createInput(wireProf, spline, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
+    pathCurves = adsk.core.ObjectCollection.create()
+    pathCurves.add(spline)
+    path = rootComp.features.createPath(pathCurves)
+    sweepInput = rootComp.features.sweepFeatures.createInput(wireProf, path, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
     sweepInput.isSolid = True
     rootComp.features.sweepFeatures.add(sweepInput)
     ui.messageBox("Spring created!")
@@ -734,7 +741,10 @@ except Exception as e:
     csSketch.sketchCurves.sketchCircles.addByCenterRadius(adsk.core.Point3D.create(0, 0, -leg_l), inner_r)
     csProf = csSketch.profiles.item(0)
 
-    sweepInput = rootComp.features.sweepFeatures.createInput(csProf, spline, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
+    pathCurves = adsk.core.ObjectCollection.create()
+    pathCurves.add(spline)
+    path = rootComp.features.createPath(pathCurves)
+    sweepInput = rootComp.features.sweepFeatures.createInput(csProf, path, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
     sweepInput.isSolid = True
     rootComp.features.sweepFeatures.add(sweepInput)
     ui.messageBox("Pipe elbow created!")
@@ -1625,6 +1635,174 @@ except Exception as e:
 except Exception as e:
     ui.messageBox(f"Error: {str(e)}")`,
   },
+
+  // =========================================================================
+  // AGRI-TRUST: L-SHAPE CAMERA POLE
+  // =========================================================================
+  {
+    id: "l_shape_camera_pole",
+    keywords: [
+      "tiang kamera", "camera pole", "camera mount", "l-shape camera",
+      "l shape camera", "tiang ov2640", "camera stand", "dudukan kamera",
+      "acrylic pole", "tiang akrilik", "independent mount", "load cell mount",
+      "agri-trust", "agritrust", "tiang timbangan", "camera bracket timbangan",
+      "l-shape pole", "l shape pole", "tiang l", "tiang camera independent",
+    ],
+    label: "L-Shape Camera Pole (Agri-Trust)",
+    params: [
+      "tinggi_tiang", "lebar_tiang", "panjang_lengan", "lebar_lengan",
+      "tebal", "base_size", "notch_width", "notch_depth",
+      "lubang_lensa", "poke_d", "poke_pitch", "num_poke",
+    ],
+    defaults: {
+      tinggi_tiang: 250,
+      lebar_tiang: 120,
+      panjang_lengan: 120,
+      lebar_lengan: 50,
+      tebal: 3,
+      base_size: 100,
+      notch_width: 30,
+      notch_depth: 60,
+      lubang_lensa: 9,
+      poke_d: 2,
+      poke_pitch: 12,
+      num_poke: 4,
+    },
+    template: `try:
+    import math
+    design = adsk.fusion.Design.cast(app.activeProduct)
+    rootComp = design.rootComponent
+
+    def mm(v):
+        return v / 10.0
+
+    T       = {tebal}
+    TINGGI  = {tinggi_tiang}
+    LEBAR_T = {lebar_tiang}
+    LENGA   = {panjang_lengan}
+    LEBAR_L = {lebar_lengan}
+    BASE    = {base_size}
+    N_W     = {notch_width}
+    N_D     = {notch_depth}
+    LUBANG  = {lubang_lensa}
+    POKE    = {poke_d}
+    PITCH   = {poke_pitch}
+    N_POKE  = {num_poke}
+
+    half = mm(BASE) / 2.0
+
+    # === BASE + C-NOTCH ===
+    baseSk = rootComp.sketches.add(rootComp.xYConstructionPlane)
+    baseSk.name = "Base_CNotch"
+    L = baseSk.sketchCurves.sketchLines
+    h = half
+    L.addByTwoPoints(adsk.core.Point3D.create(-h, -h, 0), adsk.core.Point3D.create( h, -h, 0))
+    L.addByTwoPoints(adsk.core.Point3D.create( h, -h, 0), adsk.core.Point3D.create( h,  h, 0))
+    L.addByTwoPoints(adsk.core.Point3D.create( h,  h, 0), adsk.core.Point3D.create(-h,  h, 0))
+    L.addByTwoPoints(adsk.core.Point3D.create(-h,  h, 0), adsk.core.Point3D.create(-h, -h, 0))
+    nw = mm(N_W) / 2.0
+    nd = mm(N_D)
+    L.addByTwoPoints(adsk.core.Point3D.create(-nw, -h, 0), adsk.core.Point3D.create(-nw, -h + nd, 0))
+    L.addByTwoPoints(adsk.core.Point3D.create(-nw, -h + nd, 0), adsk.core.Point3D.create( nw, -h + nd, 0))
+    L.addByTwoPoints(adsk.core.Point3D.create( nw, -h + nd, 0), adsk.core.Point3D.create( nw, -h, 0))
+    baseProf = baseSk.profiles.item(0)
+    extBase = rootComp.features.extrudeFeatures.createInput(baseProf, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
+    extBase.setDistanceExtent(False, adsk.core.ValueInput.createByReal(mm(T)))
+    baseFeat = rootComp.features.extrudeFeatures.add(extBase)
+    baseFeat.name = "Base"
+
+    # === TIANG VERTIKAL ===
+    tSk = rootComp.sketches.add(rootComp.xYConstructionPlane)
+    tSk.name = "Tiang_Vertikal"
+    TL = tSk.sketchCurves.sketchLines
+    tw = mm(LEBAR_T) / 2.0
+    y0 = -h + mm(T)
+    y1 = y0 + mm(TINGGI)
+    TL.addByTwoPoints(adsk.core.Point3D.create(-tw, y0, 0), adsk.core.Point3D.create( tw, y0, 0))
+    TL.addByTwoPoints(adsk.core.Point3D.create( tw, y0, 0), adsk.core.Point3D.create( tw, y1, 0))
+    TL.addByTwoPoints(adsk.core.Point3D.create( tw, y1, 0), adsk.core.Point3D.create(-tw, y1, 0))
+    TL.addByTwoPoints(adsk.core.Point3D.create(-tw, y1, 0), adsk.core.Point3D.create(-tw, y0, 0))
+    tProf = tSk.profiles.item(0)
+    extT = rootComp.features.extrudeFeatures.createInput(tProf, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
+    extT.setDistanceExtent(False, adsk.core.ValueInput.createByReal(mm(T)))
+    tiangFeat = rootComp.features.extrudeFeatures.add(extT)
+    tiangFeat.name = "Tiang_Vertikal"
+
+    # === LENGAN HORIZONTAL ===
+    lSk = rootComp.sketches.add(rootComp.xYConstructionPlane)
+    lSk.name = "Lengan_Horizontal"
+    LL = lSk.sketchCurves.sketchLines
+    lw = mm(LENGA) / 2.0
+    y2 = y1 + mm(LEBAR_L)
+    LL.addByTwoPoints(adsk.core.Point3D.create(-lw, y1, 0), adsk.core.Point3D.create( lw, y1, 0))
+    LL.addByTwoPoints(adsk.core.Point3D.create( lw, y1, 0), adsk.core.Point3D.create( lw, y2, 0))
+    LL.addByTwoPoints(adsk.core.Point3D.create( lw, y2, 0), adsk.core.Point3D.create(-lw, y2, 0))
+    LL.addByTwoPoints(adsk.core.Point3D.create(-lw, y2, 0), adsk.core.Point3D.create(-lw, y1, 0))
+    lProf = lSk.profiles.item(0)
+    extL = rootComp.features.extrudeFeatures.createInput(lProf, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
+    extL.setDistanceExtent(False, adsk.core.ValueInput.createByReal(mm(T)))
+    lenganFeat = rootComp.features.extrudeFeatures.add(extL)
+    lenganFeat.name = "Lengan_Horizontal"
+
+    # === LUBANG LENSA OV2640 + SMALL POKE (satu per satu) ===
+    lenganBody = lenganFeat.bodies.item(0)
+    cx = 0.0
+    cy = y1 + mm(LEBAR_L) / 2.0
+
+    def cutHole(hx, hy, hr, body, name):
+        sk = rootComp.sketches.add(rootComp.xYConstructionPlane)
+        sk.sketchCurves.sketchCircles.addByCenterRadius(adsk.core.Point3D.create(hx, hy, 0), hr)
+        prof = sk.profiles.item(0)
+        extIn = rootComp.features.extrudeFeatures.createInput(prof, adsk.fusion.FeatureOperations.CutFeatureOperation)
+        bodies = adsk.core.ObjectCollection.create()
+        bodies.add(body)
+        extIn.participantBodies = bodies
+        extIn.setDistanceExtent(False, adsk.core.ValueInput.createByReal(mm(T) + 1.0))
+        feat = rootComp.features.extrudeFeatures.add(extIn)
+        feat.name = name
+
+    try:
+        cutHole(cx, cy, mm(LUBANG) / 2.0, lenganBody, "Cut_Lensa")
+    except Exception as e1:
+        ui.messageBox(f"Cut lensa gagal: {e1}\\nBody: {lenganBody.isValid if lenganBody else 'None'}\\nBodies count: {rootComp.bRepBodies.count}")
+    for i in range(N_POKE):
+        a = 2 * math.pi * i / N_POKE
+        sx = cx + mm(PITCH) * math.cos(a)
+        sy = cy + mm(PITCH) * math.sin(a)
+        try:
+            cutHole(sx, sy, mm(POKE) / 2.0, lenganBody, f"Cut_Poke_{i+1}")
+        except:
+            pass
+
+    # === FILLET R8 (simulasi hot bend) ===
+    try:
+        filletFeats = rootComp.features.filletFeatures
+        filletInput = filletFeats.createInput()
+        edges = adsk.core.ObjectCollection.create()
+        for body in [tiangFeat.bodies.item(0), lenganFeat.bodies.item(0)]:
+            for edge in body.edges:
+                bbox = edge.boundingBox
+                if bbox and abs(bbox.minPoint.y - y1) < mm(2):
+                    edges.add(edge)
+        if edges.count > 0:
+            filletInput.addConstantRadiusEdgeSet(edges, adsk.core.ValueInput.createByReal(mm(8)), False)
+            filletFeat = filletFeats.add(filletInput)
+            filletFeat.name = "Tekuk_R8"
+    except:
+        pass
+
+    ui.messageBox(
+        "L-Shape Camera Pole selesai!\\\\n\\\\n"
+        "Komponen:\\\\n"
+        "  1. Base 100x100mm + C-Notch 30x60mm\\\\n"
+        "  2. Tiang Vertikal 250x120mm\\\\n"
+        "  3. Lengan Horizontal 120x50mm\\\\n"
+        "  4. Lubang Lensa OV2640 (9mm) + 4x Poke (2mm)\\\\n"
+        "  5. Fillet R8 (simulasi hot bend)"
+    )
+except Exception as e:
+    ui.messageBox(f"Error: {str(e)}")`,
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -1676,9 +1854,11 @@ const PARAM_PATTERNS = {
 
   // Spring
   coil_r:      /(?:coil|spiral)\s*(?:radius|jari)?\s*(?:of|:|=)?\s*(\d+(?:\.\d+)?)\s*(?:mm|cm)?/i,
+  coil_d:      /(?:coil|spiral)\s*(?:diameter|dia|d)?\s*(?:of|:|=)?\s*(\d+(?:\.\d+)?)\s*(?:mm|cm)?/i,
   wire_d:      /(?:wire|kawat)\s*(?:diameter|dia|d)?\s*(?:of|:|=)?\s*(\d+(?:\.\d+)?)\s*(?:mm|cm)?/i,
   coils:       /(\d+)\s*(?:coils?|turns?|putaran)/i,
   pitch:       /pitch\s*(?:of|:|=)?\s*(\d+(?:\.\d+)?)\s*(?:mm|cm)?/i,
+  free_length: /(?:free\s*length|panjang\s*bebas)\s*(?:of|:|=)?\s*(\d+(?:\.\d+)?)\s*(?:mm|cm)?/i,
 
   // Bearing
   mount_hole_d: /(?:mount|mounting)\s*(?:hole|lubang)?\s*(?:diameter|dia|d)?\s*(?:of|:|=)?\s*(\d+(?:\.\d+)?)\s*(?:mm|cm)?/i,
@@ -1745,6 +1925,19 @@ const PARAM_PATTERNS = {
   // Housing ribs
   ribs:        /(\d+)\s*(?:ribs?|sirip)/i,
   rib_thickness: /(?:rib|sirip)\s*(?:thickness|tebal)?\s*(?:of|:|=)?\s*(\d+(?:\.\d+)?)\s*(?:mm|cm)?/i,
+
+  // L-Shape Camera Pole (Agri-Trust)
+  tinggi_tiang:  /(?:tinggi|height)\s*(?:tiang|pole)?\s*(?:of|:|=)?\s*(\d+(?:\.\d+)?)\s*(?:mm|cm)?/i,
+  lebar_tiang:   /(?:lebar|width)\s*(?:tiang|pole)?\s*(?:of|:|=)?\s*(\d+(?:\.\d+)?)\s*(?:mm|cm)?/i,
+  panjang_lengan: /(?:panjang|length)\s*(?:lengan|arm)?\s*(?:of|:|=)?\s*(\d+(?:\.\d+)?)\s*(?:mm|cm)?/i,
+  lebar_lengan:  /(?:lebar|width)\s*(?:lengan|arm)?\s*(?:of|:|=)?\s*(\d+(?:\.\d+)?)\s*(?:mm|cm)?/i,
+  base_size:     /(?:base|alas|dudukan)\s*(?:size|ukuran)?\s*(?:of|:|=)?\s*(\d+(?:\.\d+)?)\s*(?:mm|cm)?/i,
+  notch_width:   /(?:notch|coakan)\s*(?:width|lebar)?\s*(?:of|:|=)?\s*(\d+(?:\.\d+)?)\s*(?:mm|cm)?/i,
+  notch_depth:   /(?:notch|coakan)\s*(?:depth|kedalaman)?\s*(?:of|:|=)?\s*(\d+(?:\.\d+)?)\s*(?:mm|cm)?/i,
+  lubang_lensa:  /(?:lensa|lens|lubang)\s*(?:diameter|dia)?\s*(?:of|:|=)?\s*(\d+(?:\.\d+)?)\s*(?:mm|cm)?/i,
+  poke_d:        /(?:poke|small\s*hole)\s*(?:diameter|dia)?\s*(?:of|:|=)?\s*(\d+(?:\.\d+)?)\s*(?:mm|cm)?/i,
+  poke_pitch:    /(?:poke|small\s*hole)\s*(?:pitch|jarak)?\s*(?:of|:|=)?\s*(\d+(?:\.\d+)?)\s*(?:mm|cm)?/i,
+  num_poke:      /(\d+)\s*(?:poke|small\s*hole)/i,
 };
 
 // M8 bolt table: common bolt sizes mapped to dimensions
@@ -1885,12 +2078,16 @@ export function extractParameters(prompt, template) {
     outer_r: "radius", inner_r: "radius", coil_r: "radius", radius: "radius",
     base_r: "radius", lobe_r: "radius",
     height: "height", head_h: "height", bottom_h: "height", top_h: "height", back_height: "height",
+    tinggi_tiang: "height",
     width: "width", arm_width: "width", base_width: "width",
-    flange_w: "width",
+    flange_w: "width", lebar_tiang: "width", lebar_lengan: "width",
     length: "length", arm_length: "length", shaft_l: "length", leg_length: "length",
-    branch_length: "length",
+    branch_length: "length", panjang_lengan: "length",
     thickness: "thickness", wall: "thickness", arm_thickness: "thickness", base_thickness: "thickness",
     flange_t: "thickness", web_t: "thickness", rib_thickness: "thickness",
+    tebal: "thickness",
+    lubang_lensa: "diameter", poke_d: "diameter", base_size: "width",
+    notch_width: "width", notch_depth: "length", poke_pitch: "width",
   };
 
   for (const paramName of template.params) {
@@ -1924,6 +2121,18 @@ export function extractParameters(prompt, template) {
       params.inner_d = outer_d - 2 * thickness;
       console.log(`[EXTRACT] Auto-derived inner_d=${params.inner_d} from outer_d=${outer_d} - 2*${thickness}`);
     }
+  }
+
+  // Auto-derive coil_r from coil_d (user says "coil diameter 20mm" but template needs coil_r)
+  if (template.params.includes("coil_r") && params.coil_r === undefined && params.coil_d !== undefined) {
+    params.coil_r = params.coil_d / 2;
+    console.log(`[EXTRACT] Auto-derived coil_r=${params.coil_r} from coil_d=${params.coil_d}`);
+  }
+
+  // Auto-derive pitch from free_length / coils (user says "free length 40mm" but template needs pitch)
+  if (template.params.includes("pitch") && params.pitch === undefined && params.free_length !== undefined && params.coils) {
+    params.pitch = params.free_length / params.coils;
+    console.log(`[EXTRACT] Auto-derived pitch=${params.pitch} from free_length=${params.free_length} / coils=${params.coils}`);
   }
 
   // Auto-derive face_width from thickness (tebal) for gear/beam templates

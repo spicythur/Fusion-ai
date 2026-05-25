@@ -628,26 +628,6 @@ body {
   background: rgba(255, 59, 48, 0.1);
 }
 
-/* --- Template Info --- */
-.templateInfo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin-top: 6px;
-  padding: 4px 10px;
-  background: rgba(0, 113, 227, 0.06);
-  border-radius: var(--radius-sm);
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--accent);
-  animation: fadeIn 0.2s var(--ease);
-}
-
-.templateIcon {
-  font-size: 14px;
-}
-
 /* =========================================================================
    Animations
    ========================================================================= */

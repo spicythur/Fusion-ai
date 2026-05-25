@@ -111,7 +111,6 @@ class _ExecEventHandler(adsk.core.CustomEventHandler):
                 "adsk.fusion": adsk.fusion,
                 "app": app,
                 "ui": ui,
-                "design": design,
                 "rootComp": root_comp,
                 "math": math,
                 "traceback": traceback,

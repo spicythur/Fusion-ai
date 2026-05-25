@@ -25,7 +25,6 @@ function App() {
     fusionConnected,
     isGenerating,
     lastResult,
-    templateInfo,
     messages,
     sendPrompt,
     sendToFusion,
@@ -283,13 +282,6 @@ function App() {
           </div>
         )}
 
-        {/* Template Match Indicator */}
-        {templateInfo && (
-          <div className="templateInfo">
-            <span className="templateIcon">&#9881;</span>
-            <span>Template: {templateInfo.template}</span>
-          </div>
-        )}
       </div>
     </div>
   );
