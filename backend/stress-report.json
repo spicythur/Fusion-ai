@@ -1,0 +1,62 @@
+{
+  "timestamp": "2026-06-13T02:32:24.676Z",
+  "model": "mimo-v2.5-pro",
+  "type": "stress",
+  "summary": {
+    "passed": 8,
+    "warned": 0,
+    "failed": 0,
+    "total": 8,
+    "coverage": 100
+  },
+  "results": [
+    {
+      "feature": "Gearbox Assembly",
+      "status": "✅ PASS",
+      "codeLength": 8159,
+      "error": null
+    },
+    {
+      "feature": "Piston Assembly",
+      "status": "✅ PASS",
+      "codeLength": 3271,
+      "error": null
+    },
+    {
+      "feature": "Drone Frame X-Shape",
+      "status": "✅ PASS",
+      "codeLength": 4207,
+      "error": null
+    },
+    {
+      "feature": "Flanged Pipe Network",
+      "status": "✅ PASS",
+      "codeLength": 6386,
+      "error": null
+    },
+    {
+      "feature": "Bearing Block Array",
+      "status": "✅ PASS",
+      "codeLength": 4060,
+      "error": null
+    },
+    {
+      "feature": "Multi-Feature Part",
+      "status": "✅ PASS",
+      "codeLength": 3505,
+      "error": null
+    },
+    {
+      "feature": "Enclosure with Ribs",
+      "status": "✅ PASS",
+      "codeLength": 4431,
+      "error": null
+    },
+    {
+      "feature": "Helical Gear Pair",
+      "status": "✅ PASS",
+      "codeLength": 8281,
+      "error": null
+    }
+  ]
+}

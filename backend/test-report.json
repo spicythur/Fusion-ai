@@ -1,0 +1,235 @@
+{
+  "timestamp": "2026-06-13T02:06:55.776Z",
+  "model": "mimo-v2.5-pro",
+  "summary": {
+    "passed": 37,
+    "warned": 0,
+    "failed": 0,
+    "total": 37,
+    "coverage": 100
+  },
+  "results": [
+    {
+      "feature": "Extrude",
+      "status": "✅ PASS",
+      "codeLength": 591,
+      "error": null
+    },
+    {
+      "feature": "Revolve",
+      "status": "✅ PASS",
+      "codeLength": 589,
+      "error": null
+    },
+    {
+      "feature": "Sweep",
+      "status": "✅ PASS",
+      "codeLength": 1261,
+      "error": null
+    },
+    {
+      "feature": "Loft",
+      "status": "✅ PASS",
+      "codeLength": 1351,
+      "error": null
+    },
+    {
+      "feature": "Rib",
+      "status": "✅ PASS",
+      "codeLength": 1323,
+      "error": null
+    },
+    {
+      "feature": "Web",
+      "status": "✅ PASS",
+      "codeLength": 2265,
+      "error": null
+    },
+    {
+      "feature": "Emboss",
+      "status": "✅ PASS",
+      "codeLength": 2324,
+      "error": null
+    },
+    {
+      "feature": "Hole",
+      "status": "✅ PASS",
+      "codeLength": 1195,
+      "error": null
+    },
+    {
+      "feature": "Thread",
+      "status": "✅ PASS",
+      "codeLength": 3645,
+      "error": null
+    },
+    {
+      "feature": "Box",
+      "status": "✅ PASS",
+      "codeLength": 591,
+      "error": null
+    },
+    {
+      "feature": "Cylinder",
+      "status": "✅ PASS",
+      "codeLength": 599,
+      "error": null
+    },
+    {
+      "feature": "Sphere",
+      "status": "✅ PASS",
+      "codeLength": 644,
+      "error": null
+    },
+    {
+      "feature": "Torus",
+      "status": "✅ PASS",
+      "codeLength": 1415,
+      "error": null
+    },
+    {
+      "feature": "Coil",
+      "status": "✅ PASS",
+      "codeLength": 1731,
+      "error": null
+    },
+    {
+      "feature": "Pipe",
+      "status": "✅ PASS",
+      "codeLength": 1341,
+      "error": null
+    },
+    {
+      "feature": "Pattern",
+      "status": "✅ PASS",
+      "codeLength": 1652,
+      "error": null
+    },
+    {
+      "feature": "Mirror",
+      "status": "✅ PASS",
+      "codeLength": 1364,
+      "error": null
+    },
+    {
+      "feature": "Thicken",
+      "status": "✅ PASS",
+      "codeLength": 871,
+      "error": null
+    },
+    {
+      "feature": "Boundary Fill",
+      "status": "✅ PASS",
+      "codeLength": 5937,
+      "error": null
+    },
+    {
+      "feature": "Press Pull",
+      "status": "✅ PASS",
+      "codeLength": 1933,
+      "error": null
+    },
+    {
+      "feature": "Fillet",
+      "status": "✅ PASS",
+      "codeLength": 1417,
+      "error": null
+    },
+    {
+      "feature": "Chamfer",
+      "status": "✅ PASS",
+      "codeLength": 1446,
+      "error": null
+    },
+    {
+      "feature": "Shell",
+      "status": "✅ PASS",
+      "codeLength": 1423,
+      "error": null
+    },
+    {
+      "feature": "Draft",
+      "status": "✅ PASS",
+      "codeLength": 848,
+      "error": null
+    },
+    {
+      "feature": "Scale",
+      "status": "✅ PASS",
+      "codeLength": 1492,
+      "error": null
+    },
+    {
+      "feature": "Combine",
+      "status": "✅ PASS",
+      "codeLength": 1315,
+      "error": null
+    },
+    {
+      "feature": "Offset Face",
+      "status": "✅ PASS",
+      "codeLength": 986,
+      "error": null
+    },
+    {
+      "feature": "Replace Face",
+      "status": "✅ PASS",
+      "codeLength": 3048,
+      "error": null
+    },
+    {
+      "feature": "Split Face",
+      "status": "✅ PASS",
+      "codeLength": 1139,
+      "error": null
+    },
+    {
+      "feature": "Split Body",
+      "status": "✅ PASS",
+      "codeLength": 647,
+      "error": null
+    },
+    {
+      "feature": "Silhouette Split",
+      "status": "✅ PASS",
+      "codeLength": 665,
+      "error": null
+    },
+    {
+      "feature": "Move/Copy",
+      "status": "✅ PASS",
+      "codeLength": 1119,
+      "error": null
+    },
+    {
+      "feature": "Align",
+      "status": "✅ PASS",
+      "codeLength": 2092,
+      "error": null
+    },
+    {
+      "feature": "Scale Body",
+      "status": "✅ PASS",
+      "codeLength": 951,
+      "error": null
+    },
+    {
+      "feature": "Physical Material",
+      "status": "✅ PASS",
+      "codeLength": 1101,
+      "error": null
+    },
+    {
+      "feature": "Appearance",
+      "status": "✅ PASS",
+      "codeLength": 1125,
+      "error": null
+    },
+    {
+      "feature": "Change Parameters",
+      "status": "✅ PASS",
+      "codeLength": 1731,
+      "error": null
+    }
+  ]
+}

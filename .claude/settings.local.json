@@ -22,7 +22,8 @@
       "Bash(Select-String \":3001.*LISTENING\")",
       "Bash(powershell *)",
       "Bash(Start-Sleep -Seconds 3)",
-      "Bash(Get-Content \"C:\\\\Users\\\\FATUR\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--laragon-www-Fusion-Ai\\\\3f51ad45-935e-41a6-b656-bf45606e96a7\\\\tasks\\\\big293u8o.output\" -Tail 10)"
+      "Bash(Get-Content \"C:\\\\Users\\\\FATUR\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--laragon-www-Fusion-Ai\\\\3f51ad45-935e-41a6-b656-bf45606e96a7\\\\tasks\\\\big293u8o.output\" -Tail 10)",
+      "Bash(xxd /Users/fathur/Herd/Fusion-Ai/.gitignore)"
     ]
   }
 }

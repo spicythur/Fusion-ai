@@ -6,14 +6,14 @@ import "./App.css";
 // Preset prompts
 // ---------------------------------------------------------------------------
 const PRESETS = [
-  { label: "Box 5x5x5 cm", prompt: "Create a 5cm x 5cm x 5cm box" },
-  { label: "Cylinder r=3 h=8", prompt: "Create a cylinder with radius 3cm and height 8cm" },
-  { label: "Spur Gear 20T", prompt: "Create a spur gear with 20 teeth, module 1, and 10mm thickness" },
-  { label: "Phone Case", prompt: "Create a basic phone case for a 15cm x 7cm x 0.8cm phone with 1mm wall thickness and rounded corners" },
-  { label: "Simple House", prompt: "Create a simple house shape with a rectangular base 10cm x 8cm x 6cm and a triangular roof" },
-  { label: "Star Shape", prompt: "Create a 5-pointed star shape extruded to 1cm thickness with outer radius 5cm" },
-  { label: "Hex Bolt M8", prompt: "Create a hex bolt M8 with head diameter 13mm, head height 5mm, shaft diameter 8mm, and shaft length 30mm" },
-  { label: "Torus Ring", prompt: "Create a torus (donut shape) with major radius 4cm and minor radius 1cm" },
+  { icon: "📦", label: "Box", prompt: "Create a 5cm x 5cm x 5cm box" },
+  { icon: "⚙️", label: "Gear", prompt: "Create a spur gear with 20 teeth, module 1, and 10mm thickness" },
+  { icon: "🔩", label: "Bolt M8", prompt: "Create a hex bolt M8 with head diameter 13mm, head height 5mm, shaft diameter 8mm, shaft length 30mm" },
+  { icon: "📱", label: "Phone Stand", prompt: "Create a simple phone stand with base 80x60mm height 100mm at 70 degree angle" },
+  { icon: "🔧", label: "L-Bracket", prompt: "Create an L-bracket 80mm x 40mm thickness 5mm with 4 M4 bolt holes on each side" },
+  { icon: "🏗️", label: "Flanged Pipe", prompt: "Create a flanged pipe: outer diameter 3cm, inner diameter 2.4cm, length 10cm, flange 5cm diameter 0.5cm thick" },
+  { icon: "🛞", label: "Spoked Wheel", prompt: "Create a spoked wheel outer diameter 10cm, hub diameter 3cm, bore 2cm, 5 spokes width 1cm" },
+  { icon: "⚡", label: "Drone Frame", prompt: "Create an X-frame drone: center plate 5x5x0.5cm, four arms 12cm each, motor mount pads 3cm diameter at each arm tip" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -32,7 +32,7 @@ function App() {
   } = useFusion();
 
   const [input, setInput] = useState("");
-  const [autoSend, setAutoSend] = useState(false);
+  const [autoSend, setAutoSend] = useState(true);
   const chatEndRef = useRef(null);
   const textareaRef = useRef(null);
 
@@ -66,11 +66,6 @@ function App() {
     }
   };
 
-  // Copy to clipboard
-  const copyCode = (code) => {
-    navigator.clipboard.writeText(code);
-  };
-
   // Download as .py
   const downloadCode = (code) => {
     const blob = new Blob([code], { type: "text/x-python" });
@@ -99,33 +94,33 @@ function App() {
   // Check if chat has messages
   const hasMessages = messages.length > 0 || isGenerating;
 
+  // Find last assistant message (for success card)
+  const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
+
   return (
     <div className="app">
       {/* ---- HEADER ---- */}
       <header className="header">
         <div className="headerLeft">
-          <div className="logo">F</div>
+          <div className="logo">✦</div>
           <div>
-            <div className="headerTitle">Fusion AI Generator</div>
+            <div className="headerTitle">Fusion AI</div>
             <div className="headerSubtitle">Natural Language → 3D Models</div>
           </div>
         </div>
 
         <div className="headerRight">
-          {/* Clear chat */}
           {hasMessages && (
             <button className="headerBtn" onClick={clearChat} id="clear-chat-btn" title="Clear chat">
-              Clear
+              <span className="headerBtnIcon">↺</span> New
             </button>
           )}
 
-          {/* WebSocket status */}
           <div className={`statusBadge ${wsConnected ? "connected" : "disconnected"}`}>
             <span className={`statusDot ${wsConnected ? "active" : "inactive"}`}></span>
             <span>Server</span>
           </div>
 
-          {/* Fusion status */}
           <div className={`statusBadge ${fusionConnected ? "connected" : "disconnected"}`}>
             <span className={`statusDot ${fusionConnected ? "active" : "inactive"}`}></span>
             <span>Fusion 360</span>
@@ -138,11 +133,11 @@ function App() {
         {!hasMessages ? (
           /* Welcome Screen */
           <div className="welcome">
-            <div className="welcomeIcon">F</div>
+            <div className="welcomeIcon">✦</div>
             <h1 className="welcomeTitle">What do you want to create?</h1>
             <p className="welcomeDesc">
-              Describe any 3D model in natural language and I'll generate the
-              Fusion 360 Python script to build it automatically.
+              Describe any 3D model in natural language.<br />
+              AI generates the script and sends it to Fusion 360.
             </p>
 
             <div className="presets">
@@ -153,6 +148,7 @@ function App() {
                   onClick={() => handlePreset(p.prompt)}
                   id={`preset-${i}`}
                 >
+                  <span className="presetIcon">{p.icon}</span>
                   {p.label}
                 </button>
               ))}
@@ -163,10 +159,7 @@ function App() {
           <>
             {messages.map((msg, i) => (
               <div key={i} className={`message ${msg.role}`}>
-                {msg.role === "assistant" && (
-                  <div className="messageAvatar ai">F</div>
-                )}
-
+                {/* User message */}
                 {msg.role === "user" && (
                   <>
                     <div style={{ flex: 1 }} />
@@ -175,42 +168,51 @@ function App() {
                   </>
                 )}
 
+                {/* Assistant message — show success card, not raw code */}
                 {msg.role === "assistant" && (
-                  <div className="messageBubble aiBubble">
-                    <div className="codeWrapper">
-                      <pre className="codeBlock">{msg.content}</pre>
-                      <div className="codeActions">
-                        <button
-                          className="codeBtn"
-                          onClick={() => copyCode(msg.content)}
-                          id={`copy-btn-${i}`}
-                        >
-                          Copy
-                        </button>
-                        <button
-                          className="codeBtn"
-                          onClick={() => downloadCode(msg.content)}
-                          id={`download-btn-${i}`}
-                        >
-                          Download
-                        </button>
-                        <button
-                          className="codeBtn sendFusion"
-                          onClick={() => sendToFusion(msg.content)}
-                          id={`send-fusion-btn-${i}`}
-                        >
-                          Send to Fusion
-                        </button>
+                  <>
+                    <div className="messageAvatar ai">✦</div>
+                    <div className="messageBubble aiBubble">
+                      <div className="successCard">
+                        <div className="successHeader">
+                          <div className="successIcon">✓</div>
+                          <div className="successText">
+                            <div className="successTitle">Script Generated</div>
+                            <div className="successMeta">{msg.content.length} characters</div>
+                          </div>
+                        </div>
+                        <div className="successActions">
+                          <button
+                            className="actionBtn"
+                            onClick={() => downloadCode(msg.content)}
+                            id={`download-btn-${i}`}
+                          >
+                            ↓ Download
+                          </button>
+                          <button
+                            className="actionBtn primary"
+                            onClick={() => sendToFusion(msg.content)}
+                            id={`send-fusion-btn-${i}`}
+                          >
+                            → Send to Fusion
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </>
                 )}
 
+                {/* Error message */}
                 {msg.role === "error" && (
-                  <div className="errorBubble">
-                    <span>!</span>
-                    <span>{msg.content}</span>
-                  </div>
+                  <>
+                    <div className="messageAvatar ai">✦</div>
+                    <div className="messageBubble aiBubble">
+                      <div className="errorCard">
+                        <div className="errorIcon">!</div>
+                        <div className="errorText">{msg.content}</div>
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
             ))}
@@ -218,7 +220,7 @@ function App() {
             {/* Generating indicator */}
             {isGenerating && (
               <div className="message assistant">
-                <div className="messageAvatar ai">F</div>
+                <div className="messageAvatar ai">✦</div>
                 <div className="generatingCard">
                   <div className="generatingPulse"></div>
                   <div className="generatingText">
@@ -234,7 +236,32 @@ function App() {
 
       {/* ---- INPUT AREA ---- */}
       <div className="inputArea">
-        <div className="inputControls">
+        <div className="inputRow">
+          <div className="inputWrapper">
+            <textarea
+              ref={textareaRef}
+              className="inputField"
+              placeholder="Describe a 3D model..."
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              rows={1}
+              id="prompt-input"
+            />
+            <button
+              className="sendBtn"
+              onClick={handleSubmit}
+              disabled={!input.trim() || isGenerating}
+              id="send-btn"
+            >
+              {isGenerating ? (
+                <span className="sendSpinner"></span>
+              ) : (
+                <span className="sendArrow">→</span>
+              )}
+            </button>
+          </div>
+
           <label className="autoSendToggle" id="auto-send-toggle">
             <div
               className={`toggleTrack ${autoSend ? "active" : ""}`}
@@ -242,46 +269,26 @@ function App() {
             >
               <div className="toggleThumb"></div>
             </div>
-            <span>Auto-send to Fusion 360</span>
+            <span className="toggleLabel">Auto-send</span>
           </label>
         </div>
 
-        <div className="inputWrapper">
-          <textarea
-            ref={textareaRef}
-            className="inputField"
-            placeholder="Describe a 3D model... (Enter to send, Shift+Enter for new line)"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            rows={1}
-            id="prompt-input"
-          />
-          <button
-            className="sendBtn"
-            onClick={handleSubmit}
-            disabled={!input.trim() || isGenerating}
-            id="send-btn"
-          >
-            {isGenerating ? "..." : "→"}
-          </button>
-        </div>
-
         {/* Status Bar */}
-        {lastResult && (
+        {lastResult && !isGenerating && (
           <div className={`statusBar ${lastResult.status}`}>
-            {lastResult.status === "success" && ""}
-            {lastResult.status === "error" && ""}
-            {lastResult.status === "sending" && ""}
+            <span className="statusIcon">
+              {lastResult.status === "success" && "✓"}
+              {lastResult.status === "error" && "✗"}
+              {lastResult.status === "sending" && "↻"}
+            </span>
             {lastResult.message}
-            {lastResult.status === "error" && !isGenerating && (
+            {lastResult.status === "error" && (
               <button className="retryBtn" onClick={handleRetry}>
                 Retry
               </button>
             )}
           </div>
         )}
-
       </div>
     </div>
   );
