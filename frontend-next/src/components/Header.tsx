@@ -21,6 +21,14 @@ export default function Header({ wsConnected, fusionConnected, hasMessages, onCl
       </Link>
 
       <div className="flex items-center gap-2">
+        {/* Navigation links */}
+        <Link href="/history" className="px-3 py-1.5 rounded-full text-xs font-medium text-[var(--text-secondary)] hover:text-white bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--border-hover)] transition-all">
+          History
+        </Link>
+        <Link href="/profile" className="px-3 py-1.5 rounded-full text-xs font-medium text-[var(--text-secondary)] hover:text-white bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--border-hover)] transition-all">
+          Profile
+        </Link>
+
         {hasMessages && (
           <button onClick={onClear} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-[var(--text-secondary)] hover:text-white bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--border-hover)] transition-all">
             <span>↺</span> New

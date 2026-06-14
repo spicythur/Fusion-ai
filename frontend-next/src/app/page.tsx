@@ -1,6 +1,11 @@
+"use client";
+
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 
 export default function LandingPage() {
+  const { data: session } = useSession();
+
   return (
     <div className="min-h-screen bg-[var(--bg)]">
       {/* Navbar */}
@@ -16,15 +21,25 @@ export default function LandingPage() {
             <a href="#how" className="text-sm text-[var(--text-secondary)] hover:text-white transition-colors">How it Works</a>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/login" className="text-sm text-[var(--text-secondary)] hover:text-white transition-colors px-4 py-2">Sign in</Link>
-            <Link href="/register" className="text-sm font-semibold text-white bg-[var(--accent)] hover:bg-[var(--accent-hover)] px-5 py-2.5 rounded-full transition-all hover:shadow-lg hover:shadow-blue-500/25">Get Started</Link>
+            {session ? (
+              <>
+                <Link href="/dashboard" className="text-sm text-[var(--text-secondary)] hover:text-white transition-colors px-4 py-2">Dashboard</Link>
+                <Link href="/chat" className="text-sm font-semibold text-white bg-[var(--accent)] hover:bg-[var(--accent-hover)] px-5 py-2.5 rounded-full transition-all hover:shadow-lg hover:shadow-blue-500/25">
+                  Open Chat →
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link href="/login" className="text-sm text-[var(--text-secondary)] hover:text-white transition-colors px-4 py-2">Sign in</Link>
+                <Link href="/register" className="text-sm font-semibold text-white bg-[var(--accent)] hover:bg-[var(--accent-hover)] px-5 py-2.5 rounded-full transition-all hover:shadow-lg hover:shadow-blue-500/25">Get Started</Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
 
       {/* Hero */}
       <section className="relative pt-32 pb-20 overflow-hidden">
-        {/* Background effects */}
         <div className="absolute inset-0 bg-gradient-to-b from-blue-500/5 to-transparent"></div>
         <div className="absolute top-20 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-float"></div>
         <div className="absolute top-40 right-1/4 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl animate-float" style={{animationDelay: '2s'}}></div>
@@ -45,8 +60,8 @@ export default function LandingPage() {
           </p>
           
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up" style={{animationDelay: '0.3s'}}>
-            <Link href="/chat" className="group relative px-8 py-4 bg-[var(--accent)] text-white rounded-full text-base font-semibold hover:bg-[var(--accent-hover)] transition-all hover:shadow-xl hover:shadow-blue-500/25 hover:-translate-y-0.5">
-              Start Generating
+            <Link href={session ? "/chat" : "/register"} className="group relative px-8 py-4 bg-[var(--accent)] text-white rounded-full text-base font-semibold hover:bg-[var(--accent-hover)] transition-all hover:shadow-xl hover:shadow-blue-500/25 hover:-translate-y-0.5">
+              {session ? "Open Chat →" : "Start Generating"}
               <span className="ml-2 group-hover:translate-x-1 transition-transform inline-block">→</span>
             </Link>
             <Link href="#how" className="px-8 py-4 text-[var(--text-secondary)] hover:text-white border border-[var(--border)] hover:border-[var(--border-hover)] rounded-full text-base font-medium transition-all hover:bg-[var(--bg-card)]">
@@ -54,7 +69,6 @@ export default function LandingPage() {
             </Link>
           </div>
           
-          {/* Stats */}
           <div className="flex items-center justify-center gap-12 mt-16 animate-fade-in-up" style={{animationDelay: '0.4s'}}>
             {[
               { value: "37+", label: "CAD Features" },
@@ -80,27 +94,9 @@ export default function LandingPage() {
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
-              { 
-                step: "01", 
-                icon: "💬", 
-                title: "Describe", 
-                desc: "Tell our AI what 3D model you want in plain English. No Python knowledge required.",
-                gradient: "from-blue-500/20 to-cyan-500/20"
-              },
-              { 
-                step: "02", 
-                icon: "⚡", 
-                title: "Generate", 
-                desc: "AI creates a production-ready Fusion 360 Python script in seconds, validated for syntax.",
-                gradient: "from-purple-500/20 to-pink-500/20"
-              },
-              { 
-                step: "03", 
-                icon: "🚀", 
-                title: "Execute", 
-                desc: "Script runs automatically in Fusion 360. Your 3D model appears instantly.",
-                gradient: "from-orange-500/20 to-red-500/20"
-              },
+              { step: "01", icon: "💬", title: "Describe", desc: "Tell our AI what 3D model you want in plain English. No Python knowledge required.", gradient: "from-blue-500/20 to-cyan-500/20" },
+              { step: "02", icon: "⚡", title: "Generate", desc: "AI creates a production-ready Fusion 360 Python script in seconds, validated for syntax.", gradient: "from-purple-500/20 to-pink-500/20" },
+              { step: "03", icon: "🚀", title: "Execute", desc: "Script runs automatically in Fusion 360. Your 3D model appears instantly.", gradient: "from-orange-500/20 to-red-500/20" },
             ].map((item, i) => (
               <div key={i} className="group relative p-8 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--border-hover)] transition-all hover:-translate-y-1 hover:shadow-xl">
                 <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${item.gradient} opacity-0 group-hover:opacity-100 transition-opacity`}></div>
@@ -155,46 +151,15 @@ export default function LandingPage() {
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
-              { 
-                name: "Free", 
-                price: "$0", 
-                period: "/month",
-                desc: "Perfect for trying out",
-                quota: "10 generations/month",
-                features: ["Basic generation", "Prompt history", "Community support"],
-                popular: false,
-                cta: "Get Started"
-              },
-              { 
-                name: "Pro", 
-                price: "$9", 
-                period: "/month",
-                desc: "For regular users",
-                quota: "200 generations/month",
-                features: ["Priority queue", "Export scripts", "Email support", "Advanced models"],
-                popular: true,
-                cta: "Start Pro"
-              },
-              { 
-                name: "Business", 
-                price: "$29", 
-                period: "/month",
-                desc: "For teams and power users",
-                quota: "Unlimited generations",
-                features: ["Team features", "API access", "Priority support", "Custom models", "Admin dashboard"],
-                popular: false,
-                cta: "Contact Sales"
-              },
+              { name: "Free", price: "$0", period: "/month", desc: "Perfect for trying out", quota: "10 generations/month", features: ["Basic generation", "Prompt history", "Community support"], popular: false, cta: "Get Started" },
+              { name: "Pro", price: "$9", period: "/month", desc: "For regular users", quota: "200 generations/month", features: ["Priority queue", "Export scripts", "Email support", "Advanced models"], popular: true, cta: "Start Pro" },
+              { name: "Business", price: "$29", period: "/month", desc: "For teams and power users", quota: "Unlimited generations", features: ["Team features", "API access", "Priority support", "Custom models", "Admin dashboard"], popular: false, cta: "Contact Sales" },
             ].map((plan, i) => (
               <div key={i} className={`relative p-8 rounded-2xl border transition-all hover:-translate-y-1 ${
-                plan.popular 
-                  ? 'bg-[var(--bg-card)] border-blue-500 shadow-xl shadow-blue-500/10' 
-                  : 'bg-[var(--bg-card)] border-[var(--border)] hover:border-[var(--border-hover)]'
+                plan.popular ? 'bg-[var(--bg-card)] border-blue-500 shadow-xl shadow-blue-500/10' : 'bg-[var(--bg-card)] border-[var(--border)] hover:border-[var(--border-hover)]'
               }`}>
                 {plan.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full text-xs font-semibold text-white">
-                    MOST POPULAR
-                  </div>
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full text-xs font-semibold text-white">MOST POPULAR</div>
                 )}
                 <div className="mb-6">
                   <h3 className="text-xl font-semibold text-white mb-2">{plan.name}</h3>
@@ -213,12 +178,10 @@ export default function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <Link href="/register" className={`block w-full text-center py-3 rounded-full font-semibold transition-all ${
-                  plan.popular 
-                    ? 'bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] hover:shadow-lg hover:shadow-blue-500/25' 
-                    : 'bg-[var(--bg-elevated)] text-white hover:bg-[var(--border-hover)]'
+                <Link href={session ? "/dashboard" : "/register"} className={`block w-full text-center py-3 rounded-full font-semibold transition-all ${
+                  plan.popular ? 'bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] hover:shadow-lg hover:shadow-blue-500/25' : 'bg-[var(--bg-elevated)] text-white hover:bg-[var(--border-hover)]'
                 }`}>
-                  {plan.cta}
+                  {session ? "Upgrade" : plan.cta}
                 </Link>
               </div>
             ))}
@@ -232,8 +195,8 @@ export default function LandingPage() {
         <div className="relative max-w-3xl mx-auto px-6 text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">Ready to automate your CAD workflow?</h2>
           <p className="text-[var(--text-secondary)] mb-10">Join thousands of engineers saving hours with AI-powered script generation</p>
-          <Link href="/chat" className="inline-flex items-center gap-2 px-8 py-4 bg-[var(--accent)] text-white rounded-full text-base font-semibold hover:bg-[var(--accent-hover)] transition-all hover:shadow-xl hover:shadow-blue-500/25 hover:-translate-y-0.5">
-            Try Fusion AI Free →
+          <Link href={session ? "/chat" : "/register"} className="inline-flex items-center gap-2 px-8 py-4 bg-[var(--accent)] text-white rounded-full text-base font-semibold hover:bg-[var(--accent-hover)] transition-all hover:shadow-xl hover:shadow-blue-500/25 hover:-translate-y-0.5">
+            {session ? "Open Chat →" : "Try Fusion AI Free →"}
           </Link>
         </div>
       </section>
@@ -249,7 +212,11 @@ export default function LandingPage() {
             <div className="flex items-center gap-6">
               <a href="#features" className="text-sm text-[var(--text-muted)] hover:text-white transition-colors">Features</a>
               <a href="#pricing" className="text-sm text-[var(--text-muted)] hover:text-white transition-colors">Pricing</a>
-              <Link href="/login" className="text-sm text-[var(--text-muted)] hover:text-white transition-colors">Sign in</Link>
+              {session ? (
+                <Link href="/dashboard" className="text-sm text-[var(--text-muted)] hover:text-white transition-colors">Dashboard</Link>
+              ) : (
+                <Link href="/login" className="text-sm text-[var(--text-muted)] hover:text-white transition-colors">Sign in</Link>
+              )}
             </div>
             <div className="text-sm text-[var(--text-muted)]">© 2026 Fusion AI. All rights reserved.</div>
           </div>
