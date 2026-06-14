@@ -1,6 +1,8 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { createClient } from "@supabase/supabase-js";
+import { rateLimit } from "@/lib/rate-limit";
+import { logError, logInfo, logWarn } from "@/lib/logger";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
@@ -18,18 +20,34 @@ const handler = NextAuth({
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: credentials.email as string,
-          password: credentials.password as string,
-        });
+        const { success } = rateLimit(`login:${credentials.email}`, 5, 60000);
+        if (!success) {
+          logWarn("Rate limit exceeded for login", { email: credentials.email });
+          return null;
+        }
 
-        if (error || !data.user) return null;
+        try {
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email: credentials.email as string,
+            password: credentials.password as string,
+          });
 
-        return {
-          id: data.user.id,
-          email: data.user.email,
-          name: data.user.user_metadata?.name || data.user.email,
-        };
+          if (error || !data.user) {
+            logInfo("Login failed", { email: credentials.email });
+            return null;
+          }
+
+          logInfo("Login successful", { userId: data.user.id, email: data.user.email });
+
+          return {
+            id: data.user.id,
+            email: data.user.email,
+            name: data.user.user_metadata?.name || data.user.email,
+          };
+        } catch (error) {
+          logError("Login error", error);
+          return null;
+        }
       },
     }),
   ],
