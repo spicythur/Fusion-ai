@@ -32,6 +32,11 @@ except Exception as e:
 - NEVER create constructionPlanes inside loops (use one shared plane for all similar features)
 
 ===== PERFORMANCE LIMIT =====
+- For complex assemblies (gearbox, multi-body): keep scripts under 100 lines
+- If a script has 4+ gears or 10+ bodies, split into 2-3 smaller scripts
+- NEVER create more than 8 separate bodies in one script — Fusion 360 may crash
+- For gearboxes: create gears one at a time, not all at once in a loop
+- InternalValidationError means geometry is invalid — simplify the script
 - MAX 15 extrude operations per script. More than that may timeout.
 - For decorative features (ridges, knurling): use max 8 cuts, not 24+.
 - Prefer fewer, larger operations over many tiny ones.
@@ -68,6 +73,32 @@ When adding features to an existing body (posts, bosses, flanges, shafts):
 2. MUST set extInput.participantBodies = [body] where body is the target body
 3. Get body from: bodyFeat = rootComp.features.extrudeFeatures.add(...); body = bodyFeat.bodies.item(0)
 Without participantBodies, JoinFeatureOperation creates a SEPARATE body (won't merge).
+
+===== ORDER OF OPERATIONS (CRITICAL) =====
+"Error: No target body found to cut or intersect" means you tried to cut before creating the body.
+
+ALWAYS follow this order:
+1. FIRST: Create the main body (NewBodyFeatureOperation)
+2. THEN: Cut, Join, or Intersect on that body
+3. NEVER reference a body before creating it
+
+For assemblies with multiple bodies:
+- Create body A first → capture body_a = feat.bodies.item(0)
+- Create body B → capture body_b = feat.bodies.item(0)
+- Then cut/join between bodies using participantBodies
+
+WRONG (causes "No target body found"):
+    boreCut = extrudeFeatures.createInput(prof, CutFeatureOperation)
+    boreCut.participantBodies = [body]  # body not created yet!
+
+CORRECT:
+    # Step 1: Create solid body first
+    mainFeat = extrudeFeatures.add(mainInput)
+    body = mainFeat.bodies.item(0)
+    # Step 2: Now cut into it
+    boreCut = extrudeFeatures.createInput(prof, CutFeatureOperation)
+    boreCut.participantBodies = [body]  # body exists now
+
 For the FIRST feature: use NewBodyFeatureOperation, capture body = feat.bodies.item(0)
 For SUBSEQUENT features: use JoinFeatureOperation + participantBodies = [body]
 
@@ -661,8 +692,131 @@ try:
     rootComp.features.sweepFeatures.add(sweepInput)
     ui.messageBox("Spring created!")
 except Exception as e:
-    ui.messageBox(f"Error: {str(e)}")`;
 
-// ---------------------------------------------------------------------------
+EXAMPLE 15 — Piston Assembly (MULTI-BODY with correct order):
+CRITICAL: Create ALL solid bodies FIRST, THEN cut holes. NEVER cut before creating the target body.
+try:
+    import math
+    xyPlane = rootComp.xYConstructionPlane
+
+    # === STEP 1: Create cylinder bore (SOLID first, cut later) ===
+    bore_r = 2.5       # 5cm diameter bore
+    bore_h = 10.0      # 10cm height
+    boreSketch = rootComp.sketches.add(xyPlane)
+    boreSketch.sketchCurves.sketchCircles.addByCenterRadius(adsk.core.Point3D.create(0, 0, 0), bore_r)
+    boreProf = boreSketch.profiles.item(0)
+    boreExt = rootComp.features.extrudeFeatures.createInput(boreProf, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
+    boreExt.setDistanceExtent(False, adsk.core.ValueInput.createByReal(bore_h))
+    boreFeat = rootComp.features.extrudeFeatures.add(boreExt)
+    boreBody = boreFeat.bodies.item(0)
+
+    # === STEP 2: Create piston head (SOLID body) ===
+    piston_r = 2.4     # 4.8cm diameter
+    piston_h = 3.0     # 3cm height
+    pistonSketch = rootComp.sketches.add(xyPlane)
+    pistonSketch.sketchCurves.sketchCircles.addByCenterRadius(adsk.core.Point3D.create(0, 0, 0), piston_r)
+    pistonProf = pistonSketch.profiles.item(0)
+    pistonExt = rootComp.features.extrudeFeatures.createInput(pistonProf, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
+    pistonExt.setDistanceExtent(False, adsk.core.ValueInput.createByReal(piston_h))
+    pistonFeat = rootComp.features.extrudeFeatures.add(pistonExt)
+    pistonBody = pistonFeat.bodies.item(0)
+
+    # === STEP 3: Create connecting rod (SOLID body) ===
+    rod_r = 0.5        # 1cm diameter
+    rod_l = 8.0        # 8cm length
+    rodSketch = rootComp.sketches.add(rootComp.xZConstructionPlane)
+    rodSketch.sketchCurves.sketchCircles.addByCenterRadius(adsk.core.Point3D.create(0, piston_h, 0), rod_r)
+    rodProf = rodSketch.profiles.item(0)
+    rodExt = rootComp.features.extrudeFeatures.createInput(rodProf, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
+    rodExt.setDistanceExtent(False, adsk.core.ValueInput.createByReal(rod_l))
+    rodFeat = rootComp.features.extrudeFeatures.add(rodExt)
+
+    # === STEP 4: NOW cut bore hole through cylinder (body exists!) ===
+    boreHoleSketch = rootComp.sketches.add(xyPlane)
+    boreHoleSketch.sketchCurves.sketchCircles.addByCenterRadius(adsk.core.Point3D.create(0, 0, 0), bore_r - 0.3)
+    boreHoleProf = boreHoleSketch.profiles.item(0)
+    boreHoleCut = rootComp.features.extrudeFeatures.createInput(boreHoleProf, adsk.fusion.FeatureOperations.CutFeatureOperation)
+    boreHoleCut.participantBodies = [boreBody]
+    boreHoleCut.setDistanceExtent(False, adsk.core.ValueInput.createByReal(bore_h))
+    rootComp.features.extrudeFeatures.add(boreHoleCut)
+
+    # === STEP 5: Cut wrist pin hole through piston ===
+    pin_r = 0.25       # 0.5cm diameter
+    pin_y = piston_h * 0.5
+    pinSketch = rootComp.sketches.add(rootComp.xZConstructionPlane)
+    pinSketch.sketchCurves.sketchCircles.addByCenterRadius(adsk.core.Point3D.create(0, pin_y, 0), pin_r)
+    pinProf = pinSketch.profiles.item(0)
+    pinCut = rootComp.features.extrudeFeatures.createInput(pinProf, adsk.fusion.FeatureOperations.CutFeatureOperation)
+    pinCut.participantBodies = [pistonBody]
+    pinCut.setDistanceExtent(False, adsk.core.ValueInput.createByReal(piston_r * 2 + 0.1))
+    rootComp.features.extrudeFeatures.add(pinCut)
+
+    ui.messageBox("Piston assembly created!")
+except Exception as e:
+
+EXAMPLE 16 — Valve Body (side ports on cylinder):
+Key: For side ports, use YZ or XZ plane and extrude along X or Y axis (NOT Z).
+WRONG: sketch on YZ plane, extrude along Z → perpendicular error
+CORRECT: sketch on YZ plane, extrude along X axis
+try:
+    import math
+    xyPlane = rootComp.xYConstructionPlane
+    yzPlane = rootComp.yZConstructionPlane
+    xzPlane = rootComp.xZConstructionPlane
+
+    main_r = 2.5       # 5cm diameter
+    main_h = 8.0       # 8cm height
+    flange_r = 3.5     # 7cm diameter
+    flange_h = 0.5     # 0.5cm thick
+    port_r = 0.75      # 1.5cm diameter
+    port_z = main_h * 0.6  # 60% height
+
+    # Step 1: Main cylinder
+    sk1 = rootComp.sketches.add(xyPlane)
+    sk1.sketchCurves.sketchCircles.addByCenterRadius(adsk.core.Point3D.create(0, 0, 0), main_r)
+    e1 = rootComp.features.extrudeFeatures.createInput(sk1.profiles.item(0), adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
+    e1.setDistanceExtent(False, adsk.core.ValueInput.createByReal(main_h))
+    f1 = rootComp.features.extrudeFeatures.add(e1)
+    body = f1.bodies.item(0)
+
+    # Step 2: Top flange (joined)
+    fp = rootComp.constructionPlanes.createInput()
+    fp.setByOffset(xyPlane, adsk.core.ValueInput.createByReal(main_h))
+    topPlane = rootComp.constructionPlanes.add(fp)
+    sk2 = rootComp.sketches.add(topPlane)
+    sk2.sketchCurves.sketchCircles.addByCenterRadius(adsk.core.Point3D.create(0, 0, 0), flange_r)
+    e2 = rootComp.features.extrudeFeatures.createInput(sk2.profiles.item(0), adsk.fusion.FeatureOperations.JoinFeatureOperation)
+    e2.setDistanceExtent(False, adsk.core.ValueInput.createByReal(flange_h))
+    e2.participantBodies = [body]
+    rootComp.features.extrudeFeatures.add(e2)
+
+    # Step 3: Bottom flange (joined)
+    sk3 = rootComp.sketches.add(xyPlane)
+    sk3.sketchCurves.sketchCircles.addByCenterRadius(adsk.core.Point3D.create(0, 0, 0), flange_r)
+    e3 = rootComp.features.extrudeFeatures.createInput(sk3.profiles.item(0), adsk.fusion.FeatureOperations.JoinFeatureOperation)
+    e3.setDistanceExtent(False, adsk.core.ValueInput.createByReal(flange_h))
+    e3.participantBodies = [body]
+    rootComp.features.extrudeFeatures.add(e3)
+
+    # Step 4: Side ports (3 ports at 120 degrees)
+    for i in range(3):
+        angle = 2 * math.pi * i / 3
+        # Use YZ plane, extrude along X direction
+        portSketch = rootComp.sketches.add(yzPlane)
+        portSketch.sketchCurves.sketchCircles.addByCenterRadius(
+            adsk.core.Point3D.create(0, port_z, 0), port_r
+        )
+        portExt = rootComp.features.extrudeFeatures.createInput(
+            portSketch.profiles.item(0), adsk.fusion.FeatureOperations.JoinFeatureOperation
+        )
+        portExt.setDistanceExtent(False, adsk.core.ValueInput.createByReal(main_r + 2.0))
+        portExt.participantBodies = [body]
+        rootComp.features.extrudeFeatures.add(portExt)
+
+    ui.messageBox("Valve body created!")
+except Exception as e:
+    ui.messageBox(f"Error: {str(e)}")
+
+`;
 
 export { SYSTEM_PROMPT };

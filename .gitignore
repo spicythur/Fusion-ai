@@ -21,3 +21,9 @@ build/
 
 # Backend env (explicit)
 backend/.env
+
+# Next.js
+frontend-next/.env.local
+frontend-next/.env*.local
+frontend-next/.next/
+frontend-next/node_modules/

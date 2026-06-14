@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-06-13T02:06:55.776Z",
+  "timestamp": "2026-06-13T16:45:08.196Z",
   "model": "mimo-v2.5-pro",
   "summary": {
     "passed": 37,
@@ -18,217 +18,217 @@
     {
       "feature": "Revolve",
       "status": "✅ PASS",
-      "codeLength": 589,
+      "codeLength": 873,
       "error": null
     },
     {
       "feature": "Sweep",
       "status": "✅ PASS",
-      "codeLength": 1261,
+      "codeLength": 1767,
       "error": null
     },
     {
       "feature": "Loft",
       "status": "✅ PASS",
-      "codeLength": 1351,
+      "codeLength": 1669,
       "error": null
     },
     {
       "feature": "Rib",
       "status": "✅ PASS",
-      "codeLength": 1323,
+      "codeLength": 1557,
       "error": null
     },
     {
       "feature": "Web",
       "status": "✅ PASS",
-      "codeLength": 2265,
+      "codeLength": 1950,
       "error": null
     },
     {
       "feature": "Emboss",
       "status": "✅ PASS",
-      "codeLength": 2324,
+      "codeLength": 2671,
       "error": null
     },
     {
       "feature": "Hole",
       "status": "✅ PASS",
-      "codeLength": 1195,
+      "codeLength": 1255,
       "error": null
     },
     {
       "feature": "Thread",
       "status": "✅ PASS",
-      "codeLength": 3645,
+      "codeLength": 2894,
       "error": null
     },
     {
       "feature": "Box",
       "status": "✅ PASS",
-      "codeLength": 591,
+      "codeLength": 607,
       "error": null
     },
     {
       "feature": "Cylinder",
       "status": "✅ PASS",
-      "codeLength": 599,
+      "codeLength": 536,
       "error": null
     },
     {
       "feature": "Sphere",
       "status": "✅ PASS",
-      "codeLength": 644,
+      "codeLength": 649,
       "error": null
     },
     {
       "feature": "Torus",
       "status": "✅ PASS",
-      "codeLength": 1415,
+      "codeLength": 1200,
       "error": null
     },
     {
       "feature": "Coil",
       "status": "✅ PASS",
-      "codeLength": 1731,
+      "codeLength": 1523,
       "error": null
     },
     {
       "feature": "Pipe",
       "status": "✅ PASS",
-      "codeLength": 1341,
+      "codeLength": 549,
       "error": null
     },
     {
       "feature": "Pattern",
       "status": "✅ PASS",
-      "codeLength": 1652,
+      "codeLength": 1856,
       "error": null
     },
     {
       "feature": "Mirror",
       "status": "✅ PASS",
-      "codeLength": 1364,
+      "codeLength": 1273,
       "error": null
     },
     {
       "feature": "Thicken",
       "status": "✅ PASS",
-      "codeLength": 871,
+      "codeLength": 638,
       "error": null
     },
     {
       "feature": "Boundary Fill",
       "status": "✅ PASS",
-      "codeLength": 5937,
+      "codeLength": 1588,
       "error": null
     },
     {
       "feature": "Press Pull",
       "status": "✅ PASS",
-      "codeLength": 1933,
+      "codeLength": 1631,
       "error": null
     },
     {
       "feature": "Fillet",
       "status": "✅ PASS",
-      "codeLength": 1417,
+      "codeLength": 1355,
       "error": null
     },
     {
       "feature": "Chamfer",
       "status": "✅ PASS",
-      "codeLength": 1446,
+      "codeLength": 1320,
       "error": null
     },
     {
       "feature": "Shell",
       "status": "✅ PASS",
-      "codeLength": 1423,
+      "codeLength": 1771,
       "error": null
     },
     {
       "feature": "Draft",
       "status": "✅ PASS",
-      "codeLength": 848,
+      "codeLength": 1101,
       "error": null
     },
     {
       "feature": "Scale",
       "status": "✅ PASS",
-      "codeLength": 1492,
+      "codeLength": 1631,
       "error": null
     },
     {
       "feature": "Combine",
       "status": "✅ PASS",
-      "codeLength": 1315,
+      "codeLength": 1286,
       "error": null
     },
     {
       "feature": "Offset Face",
       "status": "✅ PASS",
-      "codeLength": 986,
+      "codeLength": 1025,
       "error": null
     },
     {
       "feature": "Replace Face",
       "status": "✅ PASS",
-      "codeLength": 3048,
+      "codeLength": 2766,
       "error": null
     },
     {
       "feature": "Split Face",
       "status": "✅ PASS",
-      "codeLength": 1139,
+      "codeLength": 1168,
       "error": null
     },
     {
       "feature": "Split Body",
       "status": "✅ PASS",
-      "codeLength": 647,
+      "codeLength": 1184,
       "error": null
     },
     {
       "feature": "Silhouette Split",
       "status": "✅ PASS",
-      "codeLength": 665,
+      "codeLength": 1203,
       "error": null
     },
     {
       "feature": "Move/Copy",
       "status": "✅ PASS",
-      "codeLength": 1119,
+      "codeLength": 1021,
       "error": null
     },
     {
       "feature": "Align",
       "status": "✅ PASS",
-      "codeLength": 2092,
+      "codeLength": 1473,
       "error": null
     },
     {
       "feature": "Scale Body",
       "status": "✅ PASS",
-      "codeLength": 951,
+      "codeLength": 664,
       "error": null
     },
     {
       "feature": "Physical Material",
       "status": "✅ PASS",
-      "codeLength": 1101,
+      "codeLength": 1058,
       "error": null
     },
     {
       "feature": "Appearance",
       "status": "✅ PASS",
-      "codeLength": 1125,
+      "codeLength": 1212,
       "error": null
     },
     {
       "feature": "Change Parameters",
       "status": "✅ PASS",
-      "codeLength": 1731,
+      "codeLength": 1486,
       "error": null
     }
   ]

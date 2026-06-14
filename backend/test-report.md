@@ -1,6 +1,6 @@
 # Fusion 360 Feature Coverage Report
 
-Generated: 2026-06-13T02:06:55.776Z
+Generated: 2026-06-13T16:45:08.196Z
 Model: mimo-v2.5-pro
 
 ## Summary
@@ -19,42 +19,42 @@ Model: mimo-v2.5-pro
 | Feature | Code Length |
 |---------|-------------|
 | Extrude | 591 chars |
-| Revolve | 589 chars |
-| Sweep | 1261 chars |
-| Loft | 1351 chars |
-| Rib | 1323 chars |
-| Web | 2265 chars |
-| Emboss | 2324 chars |
-| Hole | 1195 chars |
-| Thread | 3645 chars |
-| Box | 591 chars |
-| Cylinder | 599 chars |
-| Sphere | 644 chars |
-| Torus | 1415 chars |
-| Coil | 1731 chars |
-| Pipe | 1341 chars |
-| Pattern | 1652 chars |
-| Mirror | 1364 chars |
-| Thicken | 871 chars |
-| Boundary Fill | 5937 chars |
-| Press Pull | 1933 chars |
-| Fillet | 1417 chars |
-| Chamfer | 1446 chars |
-| Shell | 1423 chars |
-| Draft | 848 chars |
-| Scale | 1492 chars |
-| Combine | 1315 chars |
-| Offset Face | 986 chars |
-| Replace Face | 3048 chars |
-| Split Face | 1139 chars |
-| Split Body | 647 chars |
-| Silhouette Split | 665 chars |
-| Move/Copy | 1119 chars |
-| Align | 2092 chars |
-| Scale Body | 951 chars |
-| Physical Material | 1101 chars |
-| Appearance | 1125 chars |
-| Change Parameters | 1731 chars |
+| Revolve | 873 chars |
+| Sweep | 1767 chars |
+| Loft | 1669 chars |
+| Rib | 1557 chars |
+| Web | 1950 chars |
+| Emboss | 2671 chars |
+| Hole | 1255 chars |
+| Thread | 2894 chars |
+| Box | 607 chars |
+| Cylinder | 536 chars |
+| Sphere | 649 chars |
+| Torus | 1200 chars |
+| Coil | 1523 chars |
+| Pipe | 549 chars |
+| Pattern | 1856 chars |
+| Mirror | 1273 chars |
+| Thicken | 638 chars |
+| Boundary Fill | 1588 chars |
+| Press Pull | 1631 chars |
+| Fillet | 1355 chars |
+| Chamfer | 1320 chars |
+| Shell | 1771 chars |
+| Draft | 1101 chars |
+| Scale | 1631 chars |
+| Combine | 1286 chars |
+| Offset Face | 1025 chars |
+| Replace Face | 2766 chars |
+| Split Face | 1168 chars |
+| Split Body | 1184 chars |
+| Silhouette Split | 1203 chars |
+| Move/Copy | 1021 chars |
+| Align | 1473 chars |
+| Scale Body | 664 chars |
+| Physical Material | 1058 chars |
+| Appearance | 1212 chars |
+| Change Parameters | 1486 chars |
 
 ---
 
@@ -77,4 +77,3 @@ Model: mimo-v2.5-pro
 ## Recommendations
 
 All features covered! ✅
-

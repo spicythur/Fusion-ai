@@ -1,6 +1,6 @@
 # Fusion 360 Feature Stress Test Report
 
-Generated: 2026-06-13T02:32:24.676Z
+Generated: 2026-06-13T16:37:50.145Z
 Model: mimo-v2.5-pro
 
 ## Summary
@@ -18,14 +18,14 @@ Model: mimo-v2.5-pro
 
 | Feature | Code Length |
 |---------|-------------|
-| Gearbox Assembly | 8159 chars |
-| Piston Assembly | 3271 chars |
-| Drone Frame X-Shape | 4207 chars |
-| Flanged Pipe Network | 6386 chars |
-| Bearing Block Array | 4060 chars |
-| Multi-Feature Part | 3505 chars |
-| Enclosure with Ribs | 4431 chars |
-| Helical Gear Pair | 8281 chars |
+| Gearbox Assembly | 5420 chars |
+| Piston Assembly | 3512 chars |
+| Drone Frame X-Shape | 4511 chars |
+| Flanged Pipe Network | 6033 chars |
+| Bearing Block Array | 4626 chars |
+| Multi-Feature Part | 3140 chars |
+| Enclosure with Ribs | 4930 chars |
+| Helical Gear Pair | 5121 chars |
 
 ---
 

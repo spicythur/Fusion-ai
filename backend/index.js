@@ -95,7 +95,7 @@ app.post("/generate", async (req, res) => {
 // ---------------------------------------------------------------------------
 async function sendToFusion(code) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30000);
+  const timeout = setTimeout(() => controller.abort(), 60000);
   try {
     const res = await fetch(FUSION_ADDIN_URL, {
       method: "POST",
