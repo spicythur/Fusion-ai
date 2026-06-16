@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useFusion } from "@/hooks/useFusion";
-import Header from "@/components/Header";
 import WelcomeScreen from "@/components/WelcomeScreen";
 import MessageBubble from "@/components/MessageBubble";
 import InputArea from "@/components/InputArea";
@@ -47,15 +46,26 @@ export default function ChatPage() {
   const hasMessages = messages.length > 0 || isGenerating;
 
   return (
-    <div className="flex flex-col h-screen max-h-screen w-full max-w-[720px] mx-auto bg-[var(--bg)] relative overflow-hidden">
-      <Header
-        wsConnected={wsConnected}
-        fusionConnected={fusionConnected}
-        hasMessages={hasMessages}
-        onClear={clearChat}
-      />
+    <div className="flex flex-col h-full">
+      {/* Status bar */}
+      <div className="flex items-center gap-3 px-6 py-2 border-b border-[var(--border)] bg-[var(--bg)]">
+        <div className="flex items-center gap-2">
+          <div className={`w-2 h-2 rounded-full ${wsConnected ? "bg-emerald-400" : "bg-[var(--text-muted)]"}`}></div>
+          <span className="text-xs text-[var(--text-muted)]">Server</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className={`w-2 h-2 rounded-full ${fusionConnected ? "bg-emerald-400" : "bg-[var(--text-muted)]"}`}></div>
+          <span className="text-xs text-[var(--text-muted)]">Fusion 360</span>
+        </div>
+        {hasMessages && (
+          <button onClick={clearChat} className="ml-auto px-3 py-1 rounded-md text-xs font-medium text-[var(--text-secondary)] hover:text-white hover:bg-[var(--bg-elevated)] transition-all">
+            ↺ New Chat
+          </button>
+        )}
+      </div>
 
-      <div className="flex-1 overflow-y-auto flex flex-col">
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto">
         {!hasMessages ? (
           <WelcomeScreen onPreset={handlePreset} />
         ) : (
@@ -71,13 +81,11 @@ export default function ChatPage() {
             ))}
 
             {isGenerating && (
-              <div className="flex items-start gap-2.5 px-5 py-4 animate-[fadeIn_0.25s_ease]">
-                <div className="w-7 h-7 rounded-full bg-[var(--text)] text-[var(--bg)] flex items-center justify-center text-xs font-semibold shrink-0">✦</div>
-                <div className="flex items-center gap-2.5 px-3 py-3 bg-[var(--bg-subtle)] border border-[var(--border)] rounded-xl animate-[fadeIn_0.25s_ease]">
-                  <div className="w-2 h-2 rounded-full bg-[var(--accent)] shrink-0 animate-pulse"></div>
-                  <div className="text-[13px] text-[var(--text-secondary)] font-medium">
-                    {lastResult?.message || "Generating script..."}
-                  </div>
+              <div className="flex items-start gap-3 px-6 py-4 animate-[fadeIn_0.3s_ease]">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0">✦</div>
+                <div className="flex items-center gap-3 px-4 py-3 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl">
+                  <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></div>
+                  <span className="text-sm text-[var(--text-secondary)]">{lastResult?.message || "Generating script..."}</span>
                 </div>
               </div>
             )}
@@ -86,19 +94,20 @@ export default function ChatPage() {
         <div ref={chatEndRef} />
       </div>
 
+      {/* Status message */}
       {lastResult && !isGenerating && (
-        <div className={`flex items-center justify-center gap-1.5 mx-5 mb-2 px-3 py-1.5 rounded-lg text-xs font-medium text-center ${
-          lastResult.status === "success" ? "bg-[var(--success-soft)] text-[#059669]" :
-          lastResult.status === "error" ? "bg-[var(--error-soft)] text-[var(--error)]" :
-          "bg-[var(--accent-soft)] text-[var(--accent)]"
+        <div className={`flex items-center justify-center gap-2 mx-6 mb-2 px-4 py-2 rounded-lg text-xs font-medium ${
+          lastResult.status === "success" ? "bg-emerald-500/10 text-emerald-400" :
+          lastResult.status === "error" ? "bg-red-500/10 text-red-400" :
+          "bg-blue-500/10 text-blue-400"
         }`}>
           {lastResult.status === "success" && "✓"}
           {lastResult.status === "error" && "✗"}
-          {lastResult.status === "sending" && "↻"}
           {lastResult.message}
         </div>
       )}
 
+      {/* Input */}
       <InputArea
         isGenerating={isGenerating}
         autoSend={autoSend}

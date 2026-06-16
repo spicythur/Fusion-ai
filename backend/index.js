@@ -4,7 +4,7 @@ import cors from "cors";
 import { WebSocketServer } from "ws";
 import http from "http";
 import Anthropic from "@anthropic-ai/sdk";
-import { detectPython, stripMarkdown, validatePython, validatePrompt } from "./utils.js";
+import { detectPython, stripMarkdown, validatePython, validatePrompt, getActiveProvider } from "./utils.js";
 
 const PORT = process.env.PORT || 3001;
 const FUSION_ADDIN_URL = process.env.FUSION_ADDIN_URL || "http://localhost:8080";
@@ -17,10 +17,13 @@ console.log(`[PYTHON] Using: ${PYTHON_CMD}`);
 // ---------------------------------------------------------------------------
 // MiMo client (Anthropic-compatible)
 // ---------------------------------------------------------------------------
-const anthropic = new Anthropic({
-  apiKey: process.env.MIMO_API_KEY,
-  baseURL: process.env.MIMO_BASE_URL || "https://token-plan-sgp.xiaomimimo.com/anthropic",
-});
+async function getAnthropicClient() {
+  const provider = await getActiveProvider();
+  return new Anthropic({
+    apiKey: provider.apiKey,
+    baseURL: provider.baseUrl,
+  });
+}
 
 // ---------------------------------------------------------------------------
 // System prompt — Fusion 360 Python API expert
@@ -41,19 +44,24 @@ app.get("/fusion/status", async (req, res) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 3000);
 
-    const response = await fetch(FUSION_ADDIN_URL, { signal: controller.signal });
+    const response = await fetch(FUSION_ADDIN_URL, { signal: controller.signal   });
+}
     clearTimeout(timeout);
 
     if (response.ok) {
       const data = await response.json();
-      res.json({ connected: true, addin: data });
+      res.json({ connected: true, addin: data   });
+}
     } else {
-      res.json({ connected: false, error: "Addin returned non-200" });
+      res.json({ connected: false, error: "Addin returned non-200"   });
+}
     }
   } catch {
-    res.json({ connected: false, error: "Addin unreachable" });
+    res.json({ connected: false, error: "Addin unreachable"   });
+}
   }
-});
+  });
+}
 
 // ---------------------------------------------------------------------------
 // REST: POST /fusion/send — proxy to Fusion addin
@@ -61,16 +69,19 @@ app.get("/fusion/status", async (req, res) => {
 app.post("/fusion/send", async (req, res) => {
   console.log("[API] POST /fusion/send received, body keys:", Object.keys(req.body || {}));
   const { code } = req.body;
-  if (!code) return res.status(400).json({ error: "No code provided" });
+  if (!code) return res.status(400).json({ error: "No code provided"   });
+}
   try {
     const result = await sendToFusion(code);
     console.log("[API] Fusion result:", result);
     res.json(result);
   } catch (err) {
     console.log("[API] Fusion error:", err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message   });
+}
   }
-});
+  });
+}
 
 // ---------------------------------------------------------------------------
 // REST: POST /generate — non-streaming fallback
@@ -79,16 +90,20 @@ app.post("/generate", async (req, res) => {
   const { prompt } = req.body;
 
   if (!prompt) {
-    return res.status(400).json({ error: "No prompt provided" });
+    return res.status(400).json({ error: "No prompt provided"   });
+}
   }
 
   try {
     const code = await generateValidatedCode(prompt);
-    res.json({ code });
+    res.json({ code   });
+}
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message   });
+}
   }
-});
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Helper: kirim script ke Fusion addin
@@ -102,7 +117,8 @@ async function sendToFusion(code) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code }),
       signal: controller.signal,
-    });
+      });
+}
     return res.json();
   } finally {
     clearTimeout(timeout);
@@ -115,6 +131,7 @@ async function sendToFusion(code) {
 // Helper: ask MiMo to fix broken code
 // ---------------------------------------------------------------------------
 async function fixCodeWithMiMo(brokenCode, syntaxError) {
+  const anthropic = await getAnthropicClient();
   const message = await anthropic.messages.create({
     model: process.env.MIMO_MODEL || "mimo-v2.5-pro",
     max_tokens: 16384,
@@ -126,7 +143,8 @@ async function fixCodeWithMiMo(brokenCode, syntaxError) {
         content: `The following Python code has a syntax error. Fix ONLY the syntax error, keep all logic the same. Output ONLY the corrected raw Python code.\n\nSyntax Error: ${syntaxError}\n\nBroken Code:\n${brokenCode}`,
       },
     ],
-  });
+    });
+}
   const textBlock = message.content.find((b) => b.type === "text");
   const fixed = stripMarkdown(textBlock?.text || "");
   if (!fixed.trim()) {
@@ -146,13 +164,15 @@ async function generateValidatedCode(prompt, ws = null) {
 
   const enhancedPrompt = `Write a Fusion 360 Python script for: ${prompt}`;
 
+  const anthropic = await getAnthropicClient();
   const stream = anthropic.messages.stream({
     model: process.env.MIMO_MODEL || "mimo-v2.5-pro",
     max_tokens: 16384,
     thinking: { type: "disabled" },
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: enhancedPrompt }],
-  });
+    });
+}
 
   let inputTokens = 0;
   let outputTokens = 0;
@@ -203,7 +223,8 @@ async function generateValidatedCode(prompt, ws = null) {
 // HTTP + WebSocket server
 // ---------------------------------------------------------------------------
 const server = http.createServer(app);
-const wss = new WebSocketServer({ server, path: "/ws/generate" });
+const wss = new WebSocketServer({ server, path: "/ws/generate"   });
+}
 
 wss.on("connection", (ws) => {
   console.log("[WS] Client connected");
@@ -284,12 +305,15 @@ wss.on("connection", (ws) => {
         ws.send(JSON.stringify({ type: "error", message: err.message }));
       }
     }
-  });
+    });
+}
 
   ws.on("close", () => {
     console.log("[WS] Client disconnected");
+    });
+}
   });
-});
+}
 
 // ---------------------------------------------------------------------------
 // Start server
@@ -300,4 +324,5 @@ server.listen(PORT, () => {
   console.log(`   WebSocket: ws://localhost:${PORT}/ws/generate`);
   console.log(`   Fusion addin: ${FUSION_ADDIN_URL}`);
   console.log(`   Python: ${PYTHON_CMD}\n`);
-});
+  });
+}

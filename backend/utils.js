@@ -64,3 +64,80 @@ export function validatePrompt(prompt) {
   }
   return { valid: true };
 }
+
+// ---------------------------------------------------------------------------
+// AI Provider management — read from Supabase
+// ---------------------------------------------------------------------------
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "";
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "";
+
+let supabase = null;
+if (supabaseUrl && supabaseKey) {
+  supabase = createClient(supabaseUrl, supabaseKey);
+}
+
+let cachedProvider = null;
+let cacheTime = 0;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+export async function getActiveProvider() {
+  // Return cached if fresh
+  if (cachedProvider && Date.now() - cacheTime < CACHE_TTL) {
+    return cachedProvider;
+  }
+
+  // Fallback to env if no Supabase
+  if (!supabase) {
+    return {
+      apiKey: process.env.MIMO_API_KEY || "",
+      baseUrl: process.env.MIMO_BASE_URL || "https://token-plan-sgp.xiaomimimo.com/anthropic",
+      model: process.env.MIMO_MODEL || "mimo-v2.5-pro",
+      source: "env",
+    };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("ai_providers")
+      .select("api_key_encrypted, base_url, model")
+      .eq("is_active", true)
+      .order("priority", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error || !data) {
+      // Fallback to env
+      return {
+        apiKey: process.env.MIMO_API_KEY || "",
+        baseUrl: process.env.MIMO_BASE_URL || "https://token-plan-sgp.xiaomimimo.com/anthropic",
+        model: process.env.MIMO_MODEL || "mimo-v2.5-pro",
+        source: "env",
+      };
+    }
+
+    cachedProvider = {
+      apiKey: data.api_key_encrypted,
+      baseUrl: data.base_url || "https://token-plan-sgp.xiaomimimo.com/anthropic",
+      model: data.model || "mimo-v2.5-pro",
+      source: "db",
+    };
+    cacheTime = Date.now();
+
+    return cachedProvider;
+  } catch (err) {
+    console.error("[PROVIDER] Failed to fetch from DB, using env:", err.message);
+    return {
+      apiKey: process.env.MIMO_API_KEY || "",
+      baseUrl: process.env.MIMO_BASE_URL || "https://token-plan-sgp.xiaomimimo.com/anthropic",
+      model: process.env.MIMO_MODEL || "mimo-v2.5-pro",
+      source: "env",
+    };
+  }
+}
+
+export function clearProviderCache() {
+  cachedProvider = null;
+  cacheTime = 0;
+}
