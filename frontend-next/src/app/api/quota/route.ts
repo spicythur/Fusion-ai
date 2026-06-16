@@ -11,7 +11,7 @@ export async function GET() {
   // Try to get profile
   let { data: profile, error } = await supabase
     .from("profiles")
-    .select("generations_used, generations_limit, tier")
+    .select("generations_used, generations_limit, tier, is_admin")
     .eq("id", session.user.id)
     .single();
 
@@ -27,10 +27,10 @@ export async function GET() {
         generations_used: 0,
         generations_limit: 10,
       })
-      .select("generations_used, generations_limit, tier")
+      .select("generations_used, generations_limit, tier, is_admin")
       .single();
 
-    profile = newProfile || { generations_used: 0, generations_limit: 10, tier: "free" };
+    profile = newProfile || { generations_used: 0, generations_limit: 10, tier: "free", is_admin: false };
   }
 
   return NextResponse.json({
@@ -38,5 +38,6 @@ export async function GET() {
     limit: profile.generations_limit || 10,
     tier: profile.tier || "free",
     remaining: (profile.generations_limit || 10) - (profile.generations_used || 0),
+    is_admin: profile.is_admin || false,
   });
 }

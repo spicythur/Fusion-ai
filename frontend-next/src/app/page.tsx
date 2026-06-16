@@ -2,138 +2,141 @@
 
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { useTheme } from "@/lib/theme";
+import {
+  ArrowRight, Zap, Shield, Clock, Sun, Moon, Box, Cpu, Code,
+  ChevronRight, Sparkles, Globe, Lock, BarChart3, Layers,
+} from "lucide-react";
 
 export default function LandingPage() {
   const { data: session } = useSession();
+  const { theme, toggle } = useTheme();
+
+  const glassBtn = (accent = false) =>
+    `px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${accent ? "" : "glass-card"}`;
 
   return (
-    <div className="min-h-screen bg-[var(--bg)]">
-      {/* Navbar */}
-      <nav className="fixed top-0 w-full z-50 glass">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg">✦</div>
-            <span className="text-xl font-bold text-white">Fusion AI</span>
-          </div>
+    <div className="min-h-screen relative" style={{ background: "var(--bg-base)" }}>
+      <div className="mesh-bg" />
+      <div className="mesh-bg-extra" />
+
+      {/* ─── NAVBAR ─── */}
+      <nav className="fixed top-0 w-full z-50 glass" style={{ borderBottom: "1px solid var(--glass-border)" }}>
+        <div className="max-w-6xl mx-auto px-6 py-3.5 flex items-center justify-between relative z-10">
+          <Link href="/" className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-bold text-sm" style={{ background: "var(--accent)" }}>F</div>
+            <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Fusion AI</span>
+          </Link>
           <div className="hidden md:flex items-center gap-8">
-            <a href="#features" className="text-sm text-[var(--text-secondary)] hover:text-white transition-colors">Features</a>
-            <a href="#pricing" className="text-sm text-[var(--text-secondary)] hover:text-white transition-colors">Pricing</a>
-            <a href="#how" className="text-sm text-[var(--text-secondary)] hover:text-white transition-colors">How it Works</a>
+            {["Features", "How It Works", "Pricing", "FAQ"].map((t) => (
+              <a key={t} href={`#${t.toLowerCase().replace(/ /g, "-")}`} className="text-xs font-medium transition-colors" style={{ color: "var(--text-secondary)" }} onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-primary)"; }} onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-secondary)"; }}>{t}</a>
+            ))}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <button onClick={toggle} className="p-2 rounded-xl glass-card" style={{ color: "var(--text-secondary)" }} aria-label="Toggle theme">
+              {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
+            </button>
             {session ? (
-              <>
-                <Link href="/dashboard" className="text-sm text-[var(--text-secondary)] hover:text-white transition-colors px-4 py-2">Dashboard</Link>
-                <Link href="/chat" className="text-sm font-semibold text-white bg-[var(--accent)] hover:bg-[var(--accent-hover)] px-5 py-2.5 rounded-full transition-all hover:shadow-lg hover:shadow-blue-500/25">
-                  Open Chat →
-                </Link>
-              </>
+              <Link href="/dashboard" className={glassBtn(true)} style={{ background: "var(--accent)", color: "#fff" }} onMouseEnter={(e) => { e.currentTarget.style.background = "var(--accent-hover)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "var(--accent)"; }}>
+                Dashboard <ArrowRight size={12} className="inline ml-1" />
+              </Link>
             ) : (
-              <>
-                <Link href="/login" className="text-sm text-[var(--text-secondary)] hover:text-white transition-colors px-4 py-2">Sign in</Link>
-                <Link href="/register" className="text-sm font-semibold text-white bg-[var(--accent)] hover:bg-[var(--accent-hover)] px-5 py-2.5 rounded-full transition-all hover:shadow-lg hover:shadow-blue-500/25">Get Started</Link>
-              </>
+              <div className="flex items-center gap-2">
+                <Link href="/login" className="text-xs font-medium px-4 py-2" style={{ color: "var(--text-secondary)" }}>Sign in</Link>
+                <Link href="/register" className={glassBtn(true)} style={{ background: "var(--accent)", color: "#fff" }} onMouseEnter={(e) => { e.currentTarget.style.background = "var(--accent-hover)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "var(--accent)"; }}>Get Started</Link>
+              </div>
             )}
           </div>
         </div>
       </nav>
 
-      {/* Hero */}
-      <section className="relative pt-32 pb-20 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-blue-500/5 to-transparent"></div>
-        <div className="absolute top-20 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-float"></div>
-        <div className="absolute top-40 right-1/4 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl animate-float" style={{animationDelay: '2s'}}></div>
-        
-        <div className="relative max-w-5xl mx-auto px-6 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--accent-soft)] border border-blue-500/20 mb-8 animate-fade-in-up">
-            <span className="w-2 h-2 rounded-full bg-[var(--success)] animate-pulse"></span>
-            <span className="text-sm text-blue-400">AI-Powered CAD Automation</span>
+      {/* ─── HERO ─── */}
+      <section className="pt-36 pb-24 text-center relative z-10">
+        <div className="max-w-3xl mx-auto px-6">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-card mb-8 text-[11px] font-medium" style={{ color: "var(--accent)" }}>
+            <Sparkles size={12} /> AI-Powered CAD Automation
           </div>
-          
-          <h1 className="text-5xl md:text-7xl font-bold text-white leading-tight mb-6 animate-fade-in-up" style={{animationDelay: '0.1s'}}>
-            Generate Fusion 360<br/>
-            <span className="gradient-text">Scripts with AI</span>
+          <h1 className="text-5xl md:text-6xl font-bold leading-[1.1] mb-6" style={{ color: "var(--text-primary)" }}>
+            Turn Ideas into<br />
+            <span style={{ color: "var(--accent)" }}>Fusion 360 Models</span>
           </h1>
-          
-          <p className="text-lg md:text-xl text-[var(--text-secondary)] max-w-2xl mx-auto mb-10 animate-fade-in-up" style={{animationDelay: '0.2s'}}>
-            Describe any 3D model in natural language. Our AI generates production-ready Python scripts and sends them directly to Fusion 360.
+          <p className="text-base md:text-lg mb-10 max-w-xl mx-auto leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+            Describe any 3D model in plain English. Our AI generates production-ready Python scripts and sends them directly to Fusion 360 — no coding required.
           </p>
-          
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up" style={{animationDelay: '0.3s'}}>
-            <Link href={session ? "/chat" : "/register"} className="group relative px-8 py-4 bg-[var(--accent)] text-white rounded-full text-base font-semibold hover:bg-[var(--accent-hover)] transition-all hover:shadow-xl hover:shadow-blue-500/25 hover:-translate-y-0.5">
-              {session ? "Open Chat →" : "Start Generating"}
-              <span className="ml-2 group-hover:translate-x-1 transition-transform inline-block">→</span>
+          <div className="flex items-center justify-center gap-4">
+            <Link href={session ? "/chat" : "/register"} className={glassBtn(true)} style={{ background: "var(--accent)", color: "#fff", padding: "14px 28px", fontSize: "15px" }} onMouseEnter={(e) => { e.currentTarget.style.background = "var(--accent-hover)"; e.currentTarget.style.boxShadow = "var(--shadow-glow-strong)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "var(--accent)"; e.currentTarget.style.boxShadow = "none"; }}>
+              {session ? "Open Chat" : "Start for Free"} <ArrowRight size={16} className="inline ml-1.5" />
             </Link>
-            <Link href="#how" className="px-8 py-4 text-[var(--text-secondary)] hover:text-white border border-[var(--border)] hover:border-[var(--border-hover)] rounded-full text-base font-medium transition-all hover:bg-[var(--bg-card)]">
-              See how it works
-            </Link>
+            <a href="#how-it-works" className={glassBtn()} style={{ color: "var(--text-secondary)" }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--border-hover)"; }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--glass-border)"; }}>
+              See How It Works
+            </a>
           </div>
-          
-          <div className="flex items-center justify-center gap-12 mt-16 animate-fade-in-up" style={{animationDelay: '0.4s'}}>
-            {[
-              { value: "37+", label: "CAD Features" },
-              { value: "100%", label: "Syntax Valid" },
-              { value: "<5s", label: "Generation Time" },
-            ].map((stat, i) => (
-              <div key={i} className="text-center">
-                <div className="text-2xl md:text-3xl font-bold text-white">{stat.value}</div>
-                <div className="text-sm text-[var(--text-muted)]">{stat.label}</div>
-              </div>
-            ))}
+          <div className="flex items-center justify-center gap-6 mt-10 text-xs" style={{ color: "var(--text-tertiary)" }}>
+            <span className="flex items-center gap-1.5"><Shield size={12} /> No credit card</span>
+            <span className="flex items-center gap-1.5"><Clock size={12} /> Setup in 30s</span>
+            <span className="flex items-center gap-1.5"><Zap size={12} /> 10 free generations</span>
           </div>
         </div>
       </section>
 
-      {/* How it Works */}
-      <section id="how" className="py-24 relative">
+      {/* ─── TRUSTED BY ─── */}
+      <section className="pb-20 relative z-10">
+        <p className="text-center text-[11px] font-medium mb-6 uppercase tracking-widest" style={{ color: "var(--text-tertiary)" }}>Trusted by engineers worldwide</p>
+        <div className="flex items-center justify-center gap-8 opacity-40">
+          {["Autodesk", "Fusion 360", "CAD Engineers", "Makers", "Startups"].map((t) => (
+            <span key={t} className="text-sm font-semibold" style={{ color: "var(--text-tertiary)" }}>{t}</span>
+          ))}
+        </div>
+      </section>
+
+      {/* ─── FEATURES ─── */}
+      <section id="features" className="py-24 relative z-10">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">How it Works</h2>
-            <p className="text-[var(--text-secondary)] max-w-xl mx-auto">Three simple steps from idea to 3D model</p>
+            <h2 className="text-3xl font-bold mb-3" style={{ color: "var(--text-primary)" }}>Everything you need</h2>
+            <p className="text-sm max-w-md mx-auto" style={{ color: "var(--text-secondary)" }}>From natural language to production-ready CAD scripts in seconds.</p>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-3 gap-5">
             {[
-              { step: "01", icon: "💬", title: "Describe", desc: "Tell our AI what 3D model you want in plain English. No Python knowledge required.", gradient: "from-blue-500/20 to-cyan-500/20" },
-              { step: "02", icon: "⚡", title: "Generate", desc: "AI creates a production-ready Fusion 360 Python script in seconds, validated for syntax.", gradient: "from-purple-500/20 to-pink-500/20" },
-              { step: "03", icon: "🚀", title: "Execute", desc: "Script runs automatically in Fusion 360. Your 3D model appears instantly.", gradient: "from-orange-500/20 to-red-500/20" },
-            ].map((item, i) => (
-              <div key={i} className="group relative p-8 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--border-hover)] transition-all hover:-translate-y-1 hover:shadow-xl">
-                <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${item.gradient} opacity-0 group-hover:opacity-100 transition-opacity`}></div>
-                <div className="relative">
-                  <div className="text-xs font-mono text-[var(--text-muted)] mb-4">{item.step}</div>
-                  <div className="text-4xl mb-4">{item.icon}</div>
-                  <h3 className="text-xl font-semibold text-white mb-3">{item.title}</h3>
-                  <p className="text-[var(--text-secondary)] text-sm leading-relaxed">{item.desc}</p>
+              { icon: Cpu, title: "AI Generation", desc: "Advanced language models understand your intent and generate optimized Fusion 360 Python scripts." },
+              { icon: Box, title: "Fusion 360 Integration", desc: "Scripts execute directly in Fusion 360 via our real-time WebSocket connection. No copy-paste needed." },
+              { icon: Code, title: "Code Export", desc: "Download generated scripts as .py files. Edit, version control, and share with your team." },
+              { icon: Zap, title: "Instant Results", desc: "Get production-ready scripts in under 10 seconds. No waiting, no queue, just results." },
+              { icon: Layers, title: "Version History", desc: "Every generation is saved. Browse, compare, and re-use past scripts from your dashboard." },
+              { icon: BarChart3, title: "Usage Analytics", desc: "Track your generation history, success rates, and plan usage from a clean dashboard." },
+            ].map((f, i) => (
+              <div key={i} className="p-6 rounded-2xl glass-card transition-all" onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-md)"; e.currentTarget.style.borderColor = "var(--border-hover)"; }} onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-sm)"; e.currentTarget.style.borderColor = "var(--glass-border)"; }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: "var(--accent-soft)" }}>
+                  <f.icon size={20} strokeWidth={1.5} style={{ color: "var(--accent)" }} />
                 </div>
+                <h3 className="text-sm font-semibold mb-2" style={{ color: "var(--text-primary)" }}>{f.title}</h3>
+                <p className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>{f.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Features */}
-      <section id="features" className="py-24 bg-[var(--bg-card)]">
-        <div className="max-w-6xl mx-auto px-6">
+      {/* ─── HOW IT WORKS ─── */}
+      <section id="how-it-works" className="py-24 relative z-10">
+        <div className="max-w-4xl mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Powerful Features</h2>
-            <p className="text-[var(--text-secondary)] max-w-xl mx-auto">Everything you need to automate Fusion 360 scripting</p>
+            <h2 className="text-3xl font-bold mb-3" style={{ color: "var(--text-primary)" }}>How it works</h2>
+            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Three steps. Under 30 seconds.</p>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="space-y-6">
             {[
-              { icon: "⚙️", title: "37+ CAD Operations", desc: "Extrude, revolve, sweep, loft, fillet, chamfer, and more" },
-              { icon: "🔧", title: "Complex Assemblies", desc: "Gearboxes, pistons, drone frames, pipe networks" },
-              { icon: "✅", title: "Auto Validation", desc: "Every script is syntax-checked before execution" },
-              { icon: "🔄", title: "Auto-Fix", desc: "AI automatically fixes syntax errors" },
-              { icon: "⚡", title: "Instant Execution", desc: "Scripts run directly in Fusion 360 via local addin" },
-              { icon: "📝", title: "Prompt History", desc: "Save and revisit your generation history" },
-            ].map((feature, i) => (
-              <div key={i} className="flex items-start gap-4 p-5 rounded-xl hover:bg-[var(--bg-elevated)] transition-colors">
-                <div className="w-12 h-12 rounded-xl bg-[var(--accent-soft)] flex items-center justify-center text-2xl shrink-0">{feature.icon}</div>
+              { step: "01", title: "Describe", desc: "Tell AI what 3D model you want in plain English. \"Create a flanged pipe with 5cm diameter\" — that's all you need.", icon: Sparkles },
+              { step: "02", title: "Generate", desc: "AI creates a validated Fusion 360 Python script in seconds. Preview the code, adjust if needed.", icon: Cpu },
+              { step: "03", title: "Execute", desc: "Send the script directly to Fusion 360. The model appears in your workspace instantly.", icon: Box },
+            ].map((s, i) => (
+              <div key={i} className="flex items-start gap-6 p-6 rounded-2xl glass-card">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--accent-soft)" }}>
+                  <span className="text-sm font-bold" style={{ color: "var(--accent)" }}>{s.step}</span>
+                </div>
                 <div>
-                  <h3 className="font-semibold text-white mb-1">{feature.title}</h3>
-                  <p className="text-sm text-[var(--text-secondary)]">{feature.desc}</p>
+                  <h3 className="text-base font-semibold mb-1" style={{ color: "var(--text-primary)" }}>{s.title}</h3>
+                  <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>{s.desc}</p>
                 </div>
               </div>
             ))}
@@ -141,46 +144,62 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Pricing */}
-      <section id="pricing" className="py-24">
+      {/* ─── USE CASES ─── */}
+      <section className="py-24 relative z-10">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold mb-3" style={{ color: "var(--text-primary)" }}>What you can create</h2>
+            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>From simple parts to complex assemblies.</p>
+          </div>
+          <div className="grid grid-cols-4 gap-4">
+            {[
+              { label: "Mechanical Parts", desc: "Gears, bolts, brackets, shafts" },
+              { label: "Enclosures", desc: "Custom cases, mounts, housings" },
+              { label: "Pipes & Fittings", desc: "Flanges, elbows, reducers" },
+              { label: "Structural", desc: "Frames, supports, platforms" },
+              { label: "Jigs & Fixtures", desc: "Assembly jigs, drill guides" },
+              { label: "Prototypes", desc: "Rapid concept models" },
+              { label: "Custom Tools", desc: "Specialized hand tools" },
+              { label: "Architectural", desc: "Brackets, facades, panels" },
+            ].map((u, i) => (
+              <div key={i} className="p-4 rounded-xl glass-card text-center transition-all" onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--glass-border)"; }}>
+                <div className="text-sm font-semibold mb-1" style={{ color: "var(--text-primary)" }}>{u.label}</div>
+                <div className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>{u.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── PRICING ─── */}
+      <section id="pricing" className="py-24 relative z-10">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Simple Pricing</h2>
-            <p className="text-[var(--text-secondary)] max-w-xl mx-auto">Start free, upgrade when you need more</p>
+            <h2 className="text-3xl font-bold mb-3" style={{ color: "var(--text-primary)" }}>Simple, transparent pricing</h2>
+            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Start free. Upgrade when you need more.</p>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-3 gap-5">
             {[
-              { name: "Free", price: "$0", period: "/month", desc: "Perfect for trying out", quota: "10 generations/month", features: ["Basic generation", "Prompt history", "Community support"], popular: false, cta: "Get Started" },
-              { name: "Pro", price: "$9", period: "/month", desc: "For regular users", quota: "200 generations/month", features: ["Priority queue", "Export scripts", "Email support", "Advanced models"], popular: true, cta: "Start Pro" },
-              { name: "Business", price: "$29", period: "/month", desc: "For teams and power users", quota: "Unlimited generations", features: ["Team features", "API access", "Priority support", "Custom models", "Admin dashboard"], popular: false, cta: "Contact Sales" },
+              { name: "Free", price: "$0", period: "/month", quota: "10 generations", features: ["AI script generation", "Fusion 360 integration", "Download .py files", "Generation history"], popular: false, cta: "Get Started" },
+              { name: "Pro", price: "$9", period: "/month", quota: "200 generations", features: ["Everything in Free", "Priority generation queue", "Email support", "Advanced models"], popular: true, cta: "Upgrade to Pro" },
+              { name: "Business", price: "$29", period: "/month", quota: "Unlimited", features: ["Everything in Pro", "Team collaboration", "API access", "Admin dashboard", "Priority support"], popular: false, cta: "Contact Sales" },
             ].map((plan, i) => (
-              <div key={i} className={`relative p-8 rounded-2xl border transition-all hover:-translate-y-1 ${
-                plan.popular ? 'bg-[var(--bg-card)] border-blue-500 shadow-xl shadow-blue-500/10' : 'bg-[var(--bg-card)] border-[var(--border)] hover:border-[var(--border-hover)]'
-              }`}>
-                {plan.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full text-xs font-semibold text-white">MOST POPULAR</div>
-                )}
-                <div className="mb-6">
-                  <h3 className="text-xl font-semibold text-white mb-2">{plan.name}</h3>
-                  <p className="text-sm text-[var(--text-muted)]">{plan.desc}</p>
+              <div key={i} className={`p-6 rounded-2xl glass-card transition-all ${plan.popular ? "animate-glow-pulse" : ""}`} style={{ borderColor: plan.popular ? "var(--accent)" : undefined }}>
+                {plan.popular && <div className="text-[10px] font-bold mb-3 uppercase tracking-wider" style={{ color: "var(--accent)" }}>Most Popular</div>}
+                <h3 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>{plan.name}</h3>
+                <div className="mt-3 mb-1">
+                  <span className="text-3xl font-bold" style={{ color: "var(--text-primary)" }}>{plan.price}</span>
+                  <span className="text-sm" style={{ color: "var(--text-tertiary)" }}>{plan.period}</span>
                 </div>
-                <div className="mb-6">
-                  <span className="text-4xl font-bold text-white">{plan.price}</span>
-                  <span className="text-[var(--text-muted)]">{plan.period}</span>
-                  <div className="text-sm text-blue-400 mt-1">{plan.quota}</div>
-                </div>
-                <ul className="space-y-3 mb-8">
+                <div className="text-xs font-medium mb-5" style={{ color: "var(--accent)" }}>{plan.quota}</div>
+                <ul className="space-y-2.5 mb-6">
                   {plan.features.map((f, j) => (
-                    <li key={j} className="flex items-center gap-3 text-sm text-[var(--text-secondary)]">
-                      <svg className="w-5 h-5 text-[var(--success)] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                      {f}
+                    <li key={j} className="text-xs flex items-center gap-2" style={{ color: "var(--text-secondary)" }}>
+                      <Shield size={11} style={{ color: "var(--success)" }} /> {f}
                     </li>
                   ))}
                 </ul>
-                <Link href={session ? "/dashboard" : "/register"} className={`block w-full text-center py-3 rounded-full font-semibold transition-all ${
-                  plan.popular ? 'bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] hover:shadow-lg hover:shadow-blue-500/25' : 'bg-[var(--bg-elevated)] text-white hover:bg-[var(--border-hover)]'
-                }`}>
+                <Link href={session ? "/dashboard" : "/register"} className="block text-center text-xs font-semibold py-2.5 rounded-xl transition-all" style={{ background: plan.popular ? "var(--accent)" : "var(--bg-hover)", color: plan.popular ? "#fff" : "var(--text-primary)" }} onMouseEnter={(e) => { e.currentTarget.style.background = plan.popular ? "var(--accent-hover)" : "var(--bg-active)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = plan.popular ? "var(--accent)" : "var(--bg-hover)"; }}>
                   {session ? "Upgrade" : plan.cta}
                 </Link>
               </div>
@@ -189,36 +208,56 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="py-24 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-blue-500/5 to-transparent"></div>
-        <div className="relative max-w-3xl mx-auto px-6 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">Ready to automate your CAD workflow?</h2>
-          <p className="text-[var(--text-secondary)] mb-10">Join thousands of engineers saving hours with AI-powered script generation</p>
-          <Link href={session ? "/chat" : "/register"} className="inline-flex items-center gap-2 px-8 py-4 bg-[var(--accent)] text-white rounded-full text-base font-semibold hover:bg-[var(--accent-hover)] transition-all hover:shadow-xl hover:shadow-blue-500/25 hover:-translate-y-0.5">
-            {session ? "Open Chat →" : "Try Fusion AI Free →"}
-          </Link>
+      {/* ─── FAQ ─── */}
+      <section id="faq" className="py-24 relative z-10">
+        <div className="max-w-2xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold mb-3" style={{ color: "var(--text-primary)" }}>Frequently asked</h2>
+          </div>
+          <div className="space-y-3">
+            {[
+              { q: "Do I need to know Python?", a: "No. Describe your model in plain English and AI handles the code." },
+              { q: "How does Fusion 360 integration work?", a: "Install our plugin. Scripts are sent via WebSocket and execute automatically in your Fusion 360 workspace." },
+              { q: "Can I edit the generated scripts?", a: "Yes. Download the .py file, edit it, and run it manually or send it back through our tool." },
+              { q: "What happens when I hit my limit?", a: "You can upgrade anytime. Your existing scripts and history are always accessible." },
+              { q: "Is my data secure?", a: "Yes. All data is encrypted in transit and at rest. We never share your scripts or prompts." },
+            ].map((faq, i) => (
+              <div key={i} className="p-5 rounded-xl glass-card">
+                <h3 className="text-sm font-semibold mb-2" style={{ color: "var(--text-primary)" }}>{faq.q}</h3>
+                <p className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>{faq.a}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-[var(--border)] py-12">
+      {/* ─── CTA ─── */}
+      <section className="py-24 relative z-10">
+        <div className="max-w-2xl mx-auto px-6 text-center">
+          <div className="p-10 rounded-2xl glass-heavy">
+            <h2 className="text-2xl font-bold mb-3 relative z-10" style={{ color: "var(--text-primary)" }}>Ready to build faster?</h2>
+            <p className="text-sm mb-6 relative z-10" style={{ color: "var(--text-secondary)" }}>Join engineers using AI to automate their Fusion 360 workflow.</p>
+            <Link href={session ? "/chat" : "/register"} className="inline-flex items-center gap-1.5 px-6 py-3 rounded-xl text-sm font-semibold transition-all relative z-10" style={{ background: "var(--accent)", color: "#fff" }} onMouseEnter={(e) => { e.currentTarget.style.background = "var(--accent-hover)"; e.currentTarget.style.boxShadow = "var(--shadow-glow-strong)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "var(--accent)"; e.currentTarget.style.boxShadow = "none"; }}>
+              {session ? "Open Chat" : "Start Free"} <ArrowRight size={14} />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── FOOTER ─── */}
+      <footer className="border-t py-12 relative z-10" style={{ borderColor: "var(--border)" }}>
         <div className="max-w-6xl mx-auto px-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">✦</div>
-              <span className="font-semibold text-white">Fusion AI</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-xs" style={{ background: "var(--accent)" }}>F</div>
+              <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Fusion AI</span>
             </div>
             <div className="flex items-center gap-6">
-              <a href="#features" className="text-sm text-[var(--text-muted)] hover:text-white transition-colors">Features</a>
-              <a href="#pricing" className="text-sm text-[var(--text-muted)] hover:text-white transition-colors">Pricing</a>
-              {session ? (
-                <Link href="/dashboard" className="text-sm text-[var(--text-muted)] hover:text-white transition-colors">Dashboard</Link>
-              ) : (
-                <Link href="/login" className="text-sm text-[var(--text-muted)] hover:text-white transition-colors">Sign in</Link>
-              )}
+              {["Features", "Pricing", "FAQ"].map((t) => (
+                <a key={t} href={`#${t.toLowerCase()}`} className="text-xs" style={{ color: "var(--text-tertiary)" }}>{t}</a>
+              ))}
             </div>
-            <div className="text-sm text-[var(--text-muted)]">© 2026 Fusion AI. All rights reserved.</div>
+            <div className="text-xs" style={{ color: "var(--text-tertiary)" }}>&copy; 2026 Fusion AI</div>
           </div>
         </div>
       </footer>

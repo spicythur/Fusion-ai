@@ -1,114 +1,79 @@
 "use client";
 
 import { useState } from "react";
+import { Check, Copy, Download, Send, ChevronDown, ChevronUp, AlertCircle } from "lucide-react";
 
-interface Message {
-  role: "user" | "assistant" | "error";
-  content: string;
-  timestamp?: number;
-}
-
-interface MessageBubbleProps {
-  message: Message;
-  index: number;
-  onDownload: (code: string) => void;
-  onSendToFusion: (code: string) => void;
-}
+interface Message { role: "user" | "assistant" | "error"; content: string; timestamp?: number; }
+interface MessageBubbleProps { message: Message; index: number; onDownload: (code: string) => void; onSendToFusion: (code: string) => void; }
 
 export default function MessageBubble({ message, index, onDownload, onSendToFusion }: MessageBubbleProps) {
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(message.content);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const handleCopy = () => { navigator.clipboard.writeText(message.content); setCopied(true); setTimeout(() => setCopied(false), 2000); };
 
   if (message.role === "user") {
     return (
-      <div className="flex items-start gap-3 px-6 py-4 animate-[slideInRight_0.3s_ease]">
+      <div className="flex items-start gap-3 px-6 py-4 animate-fade-in">
         <div className="flex-1" />
-        <div className="max-w-[70%] px-4 py-3 bg-blue-600 text-white rounded-2xl rounded-br-md text-sm leading-relaxed">
+        <div className="max-w-[70%] px-3.5 py-2 rounded-xl text-sm" style={{ background: "var(--accent)", color: "#fff" }}>
           {message.content}
         </div>
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white text-xs font-bold shrink-0">U</div>
+        <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: "var(--text-tertiary)" }}>U</div>
       </div>
     );
   }
 
   if (message.role === "error") {
     return (
-      <div className="flex items-start gap-3 px-6 py-4 animate-[fadeIn_0.3s_ease]">
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0">✦</div>
-        <div className="max-w-[80%]">
-          <div className="flex items-start gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
-            <div className="w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-full text-xs font-bold shrink-0">!</div>
-            <div className="text-sm text-red-400 leading-relaxed">{message.content}</div>
-          </div>
+      <div className="flex items-start gap-3 px-6 py-4 animate-fade-in">
+        <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: "var(--accent)" }}>F</div>
+        <div className="flex items-start gap-2 p-3 rounded-xl border" style={{ background: "var(--error-soft)", borderColor: "var(--error)", maxWidth: "80%" }}>
+          <AlertCircle size={14} style={{ color: "var(--error)", flexShrink: 0, marginTop: 2 }} />
+          <span className="text-xs" style={{ color: "var(--error)" }}>{message.content}</span>
         </div>
       </div>
     );
   }
 
-  // Assistant — code with expand/collapse
   return (
-    <div className="flex items-start gap-3 px-6 py-4 animate-[fadeIn_0.3s_ease]">
-      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0">✦</div>
+    <div className="flex items-start gap-3 px-6 py-4 animate-fade-in">
+      <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: "var(--accent)" }}>F</div>
       <div className="flex-1 max-w-[85%]">
-        {/* Code block */}
-        <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl overflow-hidden">
+        <div className="rounded-xl overflow-hidden glass-card">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--border)]">
+          <div className="flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
-              <span className="text-xs font-medium text-emerald-400">Generated Script</span>
-              <span className="text-xs text-[var(--text-muted)]">({message.content.length} chars)</span>
+              <div className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--success)" }} />
+              <span className="text-[11px] font-medium" style={{ color: "var(--success)" }}>Generated</span>
+              <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>{message.content.length} chars</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={handleCopy}
-                className="px-2.5 py-1 rounded-md text-xs font-medium text-[var(--text-secondary)] hover:text-white hover:bg-[var(--bg-elevated)] transition-all"
-              >
-                {copied ? "✓ Copied" : "Copy"}
+            <div className="flex items-center gap-1">
+              <button onClick={handleCopy} className="p-1 rounded transition-colors" style={{ color: "var(--text-tertiary)" }} onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }} aria-label="Copy code">
+                {copied ? <Check size={12} /> : <Copy size={12} />}
               </button>
-              <button
-                onClick={() => setExpanded(!expanded)}
-                className="px-2.5 py-1 rounded-md text-xs font-medium text-[var(--text-secondary)] hover:text-white hover:bg-[var(--bg-elevated)] transition-all"
-              >
-                {expanded ? "Collapse" : "Expand"}
+              <button onClick={() => setExpanded(!expanded)} className="p-1 rounded transition-colors" style={{ color: "var(--text-tertiary)" }} onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }} aria-label={expanded ? "Collapse code" : "Expand code"}>
+                {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
               </button>
             </div>
           </div>
 
-          {/* Code preview / full */}
-          <div className={`overflow-hidden transition-all duration-300 ${expanded ? "max-h-[600px]" : "max-h-32"}`}>
-            <pre className="p-4 text-xs text-[var(--text-secondary)] font-mono overflow-x-auto leading-relaxed">
+          {/* Code */}
+          <div className={`overflow-hidden transition-all duration-200 ${expanded ? "max-h-[500px]" : "max-h-24"}`}>
+            <pre className="p-3 text-[11px] font-mono overflow-x-auto leading-relaxed" style={{ color: "var(--text-secondary)" }}>
               <code>{message.content}</code>
             </pre>
           </div>
-
-          {/* Gradient overlay when collapsed */}
-          {!expanded && (
-            <div className="h-8 bg-gradient-to-t from-[var(--bg-card)] to-transparent -mt-8 relative z-10"></div>
-          )}
+          {!expanded && <div className="h-6 -mt-6 relative z-10" style={{ background: `linear-gradient(transparent, var(--bg-surface))` }} />}
 
           {/* Actions */}
-          <div className="flex border-t border-[var(--border)]">
-            <button
-              onClick={() => onDownload(message.content)}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-[var(--text-secondary)] hover:text-white hover:bg-[var(--bg-elevated)] transition-all"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-              Download
+          <div className="flex border-t" style={{ borderColor: "var(--border)" }}>
+            <button onClick={() => onDownload(message.content)} className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors" style={{ color: "var(--text-secondary)" }} onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}>
+              <Download size={12} /> Download
             </button>
-            <div className="w-px bg-[var(--border)]"></div>
-            <button
-              onClick={() => onSendToFusion(message.content)}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold text-blue-400 hover:text-blue-300 hover:bg-blue-500/5 transition-all"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-              Send to Fusion
+            <div className="w-px" style={{ background: "var(--border)" }} />
+            <button onClick={() => onSendToFusion(message.content)} className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold transition-colors" style={{ color: "var(--accent)" }} onMouseEnter={(e) => { e.currentTarget.style.background = "var(--accent-soft)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}>
+              <Send size={12} /> Send to Fusion
             </button>
           </div>
         </div>

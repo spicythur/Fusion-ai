@@ -5,41 +5,22 @@ import { useFusion } from "@/hooks/useFusion";
 import WelcomeScreen from "@/components/WelcomeScreen";
 import MessageBubble from "@/components/MessageBubble";
 import InputArea from "@/components/InputArea";
+import { Wifi, WifiOff, Box, RotateCcw } from "lucide-react";
 
 export default function ChatPage() {
-  const {
-    wsConnected,
-    fusionConnected,
-    isGenerating,
-    lastResult,
-    messages,
-    sendPrompt,
-    sendToFusion,
-    clearChat,
-  } = useFusion();
-
+  const { wsConnected, fusionConnected, isGenerating, lastResult, messages, sendPrompt, sendToFusion, clearChat } = useFusion();
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [autoSend, setAutoSend] = useState(true);
 
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, lastResult]);
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, lastResult]);
 
-  const handleSubmit = useCallback((prompt: string) => {
-    sendPrompt(prompt, autoSend);
-  }, [sendPrompt, autoSend]);
-
-  const handlePreset = useCallback((prompt: string) => {
-    if (!isGenerating) sendPrompt(prompt, autoSend);
-  }, [sendPrompt, autoSend, isGenerating]);
+  const handleSubmit = useCallback((prompt: string) => { sendPrompt(prompt, autoSend); }, [sendPrompt, autoSend]);
+  const handlePreset = useCallback((prompt: string) => { if (!isGenerating) sendPrompt(prompt, autoSend); }, [sendPrompt, autoSend, isGenerating]);
 
   const downloadCode = useCallback((code: string) => {
     const blob = new Blob([code], { type: "text/x-python" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `fusion_script_${Date.now()}.py`;
-    a.click();
+    const a = document.createElement("a"); a.href = url; a.download = `fusion_${Date.now()}.py`; a.click();
     URL.revokeObjectURL(url);
   }, []);
 
@@ -48,18 +29,18 @@ export default function ChatPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Status bar */}
-      <div className="flex items-center gap-3 px-6 py-2 border-b border-[var(--border)] bg-[var(--bg)]">
-        <div className="flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full ${wsConnected ? "bg-emerald-400" : "bg-[var(--text-muted)]"}`}></div>
-          <span className="text-xs text-[var(--text-muted)]">Server</span>
+      <div className="flex items-center gap-4 px-4 py-2.5 glass" style={{ borderBottom: "1px solid var(--glass-border)" }}>
+        <div className="flex items-center gap-1.5">
+          {wsConnected ? <Wifi size={12} style={{ color: "var(--success)" }} /> : <WifiOff size={12} style={{ color: "var(--text-tertiary)" }} />}
+          <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>Server</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full ${fusionConnected ? "bg-emerald-400" : "bg-[var(--text-muted)]"}`}></div>
-          <span className="text-xs text-[var(--text-muted)]">Fusion 360</span>
+        <div className="flex items-center gap-1.5">
+          <Box size={12} style={{ color: fusionConnected ? "var(--success)" : "var(--text-tertiary)" }} />
+          <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>Fusion 360</span>
         </div>
         {hasMessages && (
-          <button onClick={clearChat} className="ml-auto px-3 py-1 rounded-md text-xs font-medium text-[var(--text-secondary)] hover:text-white hover:bg-[var(--bg-elevated)] transition-all">
-            ↺ New Chat
+          <button onClick={clearChat} className="ml-auto flex items-center gap-1 px-2 py-1 rounded-md text-[11px] transition-colors" style={{ color: "var(--text-tertiary)" }} onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}>
+            <RotateCcw size={11} /> New Chat
           </button>
         )}
       </div>
@@ -71,21 +52,14 @@ export default function ChatPage() {
         ) : (
           <>
             {messages.map((msg, i) => (
-              <MessageBubble
-                key={i}
-                message={msg}
-                index={i}
-                onDownload={downloadCode}
-                onSendToFusion={sendToFusion}
-              />
+              <MessageBubble key={i} message={msg} index={i} onDownload={downloadCode} onSendToFusion={sendToFusion} />
             ))}
-
             {isGenerating && (
-              <div className="flex items-start gap-3 px-6 py-4 animate-[fadeIn_0.3s_ease]">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0">✦</div>
-                <div className="flex items-center gap-3 px-4 py-3 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl">
-                  <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></div>
-                  <span className="text-sm text-[var(--text-secondary)]">{lastResult?.message || "Generating script..."}</span>
+              <div className="flex items-start gap-3 px-6 py-4 animate-fade-in">
+                <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: "var(--accent)" }}>F</div>
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg glass-card">
+                  <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--accent)" }} />
+                  <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{lastResult?.message || "Generating..."}</span>
                 </div>
               </div>
             )}
@@ -94,26 +68,19 @@ export default function ChatPage() {
         <div ref={chatEndRef} />
       </div>
 
-      {/* Status message */}
+      {/* Status */}
       {lastResult && !isGenerating && (
-        <div className={`flex items-center justify-center gap-2 mx-6 mb-2 px-4 py-2 rounded-lg text-xs font-medium ${
-          lastResult.status === "success" ? "bg-emerald-500/10 text-emerald-400" :
-          lastResult.status === "error" ? "bg-red-500/10 text-red-400" :
-          "bg-blue-500/10 text-blue-400"
-        }`}>
-          {lastResult.status === "success" && "✓"}
-          {lastResult.status === "error" && "✗"}
+        <div className="flex items-center justify-center gap-1.5 mx-4 mb-2 px-3 py-1.5 rounded-lg text-xs"
+          style={{
+            background: lastResult.status === "success" ? "var(--success-soft)" : lastResult.status === "error" ? "var(--error-soft)" : "var(--accent-soft)",
+            color: lastResult.status === "success" ? "var(--success)" : lastResult.status === "error" ? "var(--error)" : "var(--accent)",
+          }}
+        >
           {lastResult.message}
         </div>
       )}
 
-      {/* Input */}
-      <InputArea
-        isGenerating={isGenerating}
-        autoSend={autoSend}
-        onToggleAutoSend={() => setAutoSend(!autoSend)}
-        onSubmit={handleSubmit}
-      />
+      <InputArea isGenerating={isGenerating} autoSend={autoSend} onToggleAutoSend={() => setAutoSend(!autoSend)} onSubmit={handleSubmit} />
     </div>
   );
 }
