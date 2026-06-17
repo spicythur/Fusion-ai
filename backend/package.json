@@ -1,7 +1,7 @@
 {
   "name": "fusion-ai-backend",
   "version": "1.0.0",
-  "description": "Backend server for Fusion AI Generator \u2014 Claude API + WebSocket + Addin proxy",
+  "description": "Backend server for Fusion AI Generator — Claude API + WebSocket + Addin proxy",
   "main": "index.js",
   "type": "module",
   "scripts": {
@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",
+    "@supabase/supabase-js": "^2.108.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",

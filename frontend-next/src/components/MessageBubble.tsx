@@ -41,38 +41,26 @@ export default function MessageBubble({ message, index, onDownload, onSendToFusi
       <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: "var(--accent)" }}>F</div>
       <div className="flex-1 max-w-[85%]">
         <div className="rounded-xl overflow-hidden glass-card">
-          {/* Header */}
-          <div className="flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
+          {/* Status */}
+          <div className="flex items-center justify-between px-4 py-3">
             <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--success)" }} />
-              <span className="text-[11px] font-medium" style={{ color: "var(--success)" }}>Generated</span>
-              <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>{message.content.length} chars</span>
+              <div className="w-2 h-2 rounded-full" style={{ background: "var(--success)" }} />
+              <span className="text-sm font-medium" style={{ color: "var(--success)" }}>Script generated</span>
             </div>
-            <div className="flex items-center gap-1">
-              <button onClick={handleCopy} className="p-1 rounded transition-colors" style={{ color: "var(--text-tertiary)" }} onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }} aria-label="Copy code">
-                {copied ? <Check size={12} /> : <Copy size={12} />}
-              </button>
-              <button onClick={() => setExpanded(!expanded)} className="p-1 rounded transition-colors" style={{ color: "var(--text-tertiary)" }} onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }} aria-label={expanded ? "Collapse code" : "Expand code"}>
-                {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-              </button>
-            </div>
+            <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>{message.content.length} chars</span>
           </div>
-
-          {/* Code */}
-          <div className={`overflow-hidden transition-all duration-200 ${expanded ? "max-h-[500px]" : "max-h-24"}`}>
-            <pre className="p-3 text-[11px] font-mono overflow-x-auto leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-              <code>{message.content}</code>
-            </pre>
-          </div>
-          {!expanded && <div className="h-6 -mt-6 relative z-10" style={{ background: `linear-gradient(transparent, var(--bg-surface))` }} />}
 
           {/* Actions */}
           <div className="flex border-t" style={{ borderColor: "var(--border)" }}>
-            <button onClick={() => onDownload(message.content)} className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors" style={{ color: "var(--text-secondary)" }} onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}>
+            <button onClick={handleCopy} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors" style={{ color: "var(--text-secondary)" }} onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}>
+              {copied ? <Check size={12} /> : <Copy size={12} />} {copied ? "Copied" : "Copy"}
+            </button>
+            <div className="w-px" style={{ background: "var(--border)" }} />
+            <button onClick={() => onDownload(message.content)} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors" style={{ color: "var(--text-secondary)" }} onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}>
               <Download size={12} /> Download
             </button>
             <div className="w-px" style={{ background: "var(--border)" }} />
-            <button onClick={() => onSendToFusion(message.content)} className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold transition-colors" style={{ color: "var(--accent)" }} onMouseEnter={(e) => { e.currentTarget.style.background = "var(--accent-soft)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}>
+            <button onClick={() => onSendToFusion(message.content)} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-colors" style={{ color: "var(--accent)" }} onMouseEnter={(e) => { e.currentTarget.style.background = "var(--accent-soft)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}>
               <Send size={12} /> Send to Fusion
             </button>
           </div>

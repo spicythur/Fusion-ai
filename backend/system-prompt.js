@@ -817,6 +817,119 @@ try:
 except Exception as e:
     ui.messageBox(f"Error: {str(e)}")
 
+EXAMPLE 17 — Sheet Metal L-Bracket (solid simulation):
+Key: No sheetMetalFeatures API. Use solid extrude + fillet for bend simulation.
+try:
+    import math
+    xyPlane = rootComp.xYConstructionPlane
+    thickness = 0.2  # 2mm
+    base_w = 10.0    # 100mm
+    base_d = 5.0     # 50mm
+    flange_h = 5.0   # 50mm
+    bend_r = 0.3     # 3mm bend radius
+
+    # L-shape profile (base + flange as one piece)
+    sketch = rootComp.sketches.add(xyPlane)
+    lines = sketch.sketchCurves.sketchLines
+    pts = [
+        adsk.core.Point3D.create(0, 0, 0),
+        adsk.core.Point3D.create(base_w, 0, 0),
+        adsk.core.Point3D.create(base_w, base_d, 0),
+        adsk.core.Point3D.create(base_w - thickness, base_d, 0),
+        adsk.core.Point3D.create(base_w - thickness, thickness, 0),
+        adsk.core.Point3D.create(0, thickness, 0),
+    ]
+    for i in range(len(pts)):
+        lines.addByTwoPoints(pts[i], pts[(i+1) % len(pts)])
+    prof = sketch.profiles.item(0)
+    extInput = rootComp.features.extrudeFeatures.createInput(prof, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
+    extInput.setDistanceExtent(False, adsk.core.ValueInput.createByReal(flange_h))
+    rootComp.features.extrudeFeatures.add(extInput)
+    ui.messageBox("L-bracket created!")
+except Exception as e:
+    ui.messageBox(f"Error: {str(e)}")
+
+EXAMPLE 18 — Enclosure Box with Ribs:
+try:
+    xyPlane = rootComp.xYConstructionPlane
+    w, d, h, wall = 12.0, 8.0, 4.0, 0.2
+
+    # Outer box
+    sk1 = rootComp.sketches.add(xyPlane)
+    sk1.sketchCurves.sketchLines.addTwoPointRectangle(
+        adsk.core.Point3D.create(0, 0, 0),
+        adsk.core.Point3D.create(w, d, 0)
+    )
+    e1 = rootComp.features.extrudeFeatures.createInput(sk1.profiles.item(0), adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
+    e1.setDistanceExtent(False, adsk.core.ValueInput.createByReal(h))
+    f1 = rootComp.features.extrudeFeatures.add(e1)
+    body = f1.bodies.item(0)
+
+    # Cut interior
+    sk2 = rootComp.sketches.add(xyPlane)
+    sk2.sketchCurves.sketchLines.addTwoPointRectangle(
+        adsk.core.Point3D.create(wall, wall, 0),
+        adsk.core.Point3D.create(w - wall, d - wall, 0)
+    )
+    e2 = rootComp.features.extrudeFeatures.createInput(sk2.profiles.item(0), adsk.fusion.FeatureOperations.CutFeatureOperation)
+    e2.setDistanceExtent(False, adsk.core.ValueInput.createByReal(h - wall))
+    rootComp.features.extrudeFeatures.add(e2)
+
+    # Internal ribs (2 ribs along length)
+    for i in range(2):
+        rib_x = w * (i + 1) / 3
+        ribSk = rootComp.sketches.add(xyPlane)
+        ribSk.sketchCurves.sketchLines.addTwoPointRectangle(
+            adsk.core.Point3D.create(rib_x - 0.1, wall, 0),
+            adsk.core.Point3D.create(rib_x + 0.1, d - wall, 0)
+        )
+        ribExt = rootComp.features.extrudeFeatures.createInput(ribSk.profiles.item(0), adsk.fusion.FeatureOperations.JoinFeatureOperation)
+        ribExt.setDistanceExtent(False, adsk.core.ValueInput.createByReal(h - wall))
+        ribExt.participantBodies = [body]
+        rootComp.features.extrudeFeatures.add(ribExt)
+    ui.messageBox("Enclosure with ribs created!")
+except Exception as e:
+    ui.messageBox(f"Error: {str(e)}")
+
+===== SHEET METAL =====
+- No sheetMetalFeatures API available in this environment
+- For bent parts: create as solid extrude with L/T/C cross-section profile
+- For bend simulation: use fillet on bend edge with radius = bend radius
+- For flanges: draw complete cross-section (base + flange) as one sketch, extrude
+- NEVER use rootComp.features.sheetMetalFeatures (does not exist)
+- For holes in sheet metal: create body first, then cut holes with separate sketch per hole
+
+===== THREADS (Visual Only) =====
+- Thread features do NOT exist in this API
+- For bolt shaft: just create cylinder (no thread detail)
+- For nut bore: just create bore (no thread detail)
+- If user asks for threads: create shaft/bore without thread, mention "Threads not supported" in messageBox
+- For visual thread approximation: use helical sweep (see Example 14 for spring pattern)
+
+===== PATTERNS =====
+- Circular pattern: calculate positions with math.cos/sin in a loop, one sketch per feature
+- Rectangular pattern: calculate positions with nested loop, one sketch per feature
+- NEVER put multiple features in one sketch for cutting
+- For bolt holes on PCD: follow Example 7 pattern (one sketch per hole)
+
+===== COMMON ERRORS =====
+- "bad index parameter": profiles.item(N) with wrong N. Always use profiles.item(0). For multiple features, use separate sketch per feature.
+- "No target body found": tried to cut/join before creating body. ALWAYS create body FIRST with NewBodyFeatureOperation, then cut/join.
+- "Profile is not closed": sketch has gaps. Ensure all lines connect end-to-end. Use addTwoPointRectangle for rectangles.
+- "Input is not valid": wrong operation type. Check NewBody/Cut/Join matches what you're doing.
+- "Cannot compute": geometry too complex or self-intersecting. Simplify the shape.
+
+===== VALIDATION RULES =====
+Before outputting code, verify:
+1. All sketches have closed profiles (lines connect end-to-end)
+2. profiles.item(0) is used (not profiles.item(N) for N>0)
+3. Body is created before any cut/join operations
+4. participantBodies is set for Join/Cut operations after first body
+5. Units are in cm (not mm)
+6. No forbidden API calls (sheetMetalFeatures, threadFeatures, revolveFeatures, etc.)
+7. MAX 15 extrude operations per script
+8. One sketch per hole/feature for cutting
+
 `;
 
 export { SYSTEM_PROMPT };
