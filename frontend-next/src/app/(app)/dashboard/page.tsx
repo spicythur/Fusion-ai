@@ -4,6 +4,10 @@ import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { MessageSquare, History, User, ArrowRight, Zap, TrendingUp } from "lucide-react";
+import { motion } from "framer-motion";
+import { fadeInUp, staggerContainer, hoverLift, smooth } from "@/lib/animations";
+
+const MotionDiv = motion.div;
 
 interface Quota { used: number; limit: number; tier: string; remaining: number; }
 
@@ -18,16 +22,16 @@ export default function DashboardPage() {
   const usagePercent = quota ? Math.min((quota.used / quota.limit) * 100, 100) : 0;
 
   return (
-    <div className="p-8 max-w-4xl">
-      <div className="mb-8">
+    <MotionDiv initial="hidden" animate="visible" variants={staggerContainer} className="p-8 max-w-4xl">
+      <MotionDiv variants={fadeInUp} transition={smooth} className="mb-8">
         <h1 className="text-xl font-semibold mb-1" style={{ color: "var(--text-primary)" }}>
           Welcome back, {session?.user?.name || session?.user?.email?.split("@")[0]}
         </h1>
         <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Here&apos;s an overview of your account.</p>
-      </div>
+      </MotionDiv>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-3 gap-3 mb-8">
+      <MotionDiv variants={fadeInUp} transition={smooth} className="grid grid-cols-3 gap-3 mb-8">
         {[
           { href: "/chat", icon: MessageSquare, label: "New Generation", desc: "Create a 3D model", accent: true },
           { href: "/history", icon: History, label: "View History", desc: "Past generations" },
@@ -44,10 +48,10 @@ export default function DashboardPage() {
             <ArrowRight size={14} className="mt-2 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "var(--text-tertiary)" }} />
           </Link>
         ))}
-      </div>
+      </MotionDiv>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-4">
+      <MotionDiv variants={fadeInUp} transition={smooth} className="grid grid-cols-2 gap-4">
         <div className="p-5 rounded-xl glass-card">
           <div className="flex items-center gap-2 mb-4">
             <Zap size={16} strokeWidth={1.5} style={{ color: "var(--text-tertiary)" }} />
@@ -88,7 +92,7 @@ export default function DashboardPage() {
             <div>Fusion 360 integration</div>
           </div>
         </div>
-      </div>
-    </div>
+      </MotionDiv>
+    </MotionDiv>
   );
 }
