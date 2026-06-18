@@ -12,11 +12,11 @@ export async function GET() {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("tier")
+      .select("tier, is_admin")
       .eq("id", session.user.id)
       .single();
 
-    if (profile?.tier !== "business") {
+    if (!profile?.is_admin && profile?.tier !== "business") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

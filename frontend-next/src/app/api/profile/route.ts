@@ -27,11 +27,25 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { name, email } = await request.json();
+  const body = await request.json();
+  const { name, email } = body;
+
+  // Input validation
+  if (name && (typeof name !== "string" || name.length > 100)) {
+    return NextResponse.json({ error: "Invalid name (max 100 characters)" }, { status: 400 });
+  }
+  if (email && (typeof email !== "string" || !email.includes("@") || email.length > 255)) {
+    return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
+  }
+
+  const updateData: Record<string, string> = {};
+  if (name) updateData.name = name.trim();
+  if (email) updateData.email = email.trim().toLowerCase();
+  updateData.updated_at = new Date().toISOString();
 
   const { data, error } = await supabase
     .from("profiles")
-    .update({ name, email, updated_at: new Date().toISOString() })
+    .update(updateData)
     .eq("id", session.user.id)
     .select()
     .single();

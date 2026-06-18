@@ -21,8 +21,25 @@ async function getAnthropicClient() {
 }
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+
+// CORS — restrict to allowed origins
+const ALLOWED_ORIGINS = [
+  "http://localhost:3000",
+  "http://localhost:5173",
+  process.env.FRONTEND_URL,
+].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, WebSocket)
+    if (!origin) return callback(null, true);
+    if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+    callback(new Error("Not allowed by CORS"));
+  },
+  credentials: true,
+}));
+
+app.use(express.json({ limit: "1mb" }));
 
 app.get("/fusion/status", async (req, res) => {
   try {
@@ -131,12 +148,49 @@ async function generateValidatedCode(prompt, ws = null) {
   return fullCode;
 }
 
+// Rate limiting — simple in-memory store
+const rateLimits = new Map();
+const RATE_LIMIT_WINDOW = 60000; // 1 minute
+const RATE_LIMIT_MAX = 10; // max requests per window
+
+function checkRateLimit(key) {
+  const now = Date.now();
+  const record = rateLimits.get(key);
+  if (!record || now - record.start > RATE_LIMIT_WINDOW) {
+    rateLimits.set(key, { start: now, count: 1 });
+    return true;
+  }
+  record.count++;
+  return record.count <= RATE_LIMIT_MAX;
+}
+
+// Rate limit middleware for HTTP routes
+function rateLimitMiddleware(req, res, next) {
+  const key = req.ip || req.headers["x-forwarded-for"] || "unknown";
+  if (!checkRateLimit(key)) {
+    return res.status(429).json({ error: "Too many requests. Try again later." });
+  }
+  next();
+}
+
+app.use("/generate", rateLimitMiddleware);
+app.use("/fusion/send", rateLimitMiddleware);
+
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: "/ws/generate" });
 
-wss.on("connection", (ws) => {
-  console.log("[WS] Client connected");
+wss.on("connection", (ws, req) => {
+  // WebSocket rate limiting
+  const clientIp = req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown";
+  console.log(`[WS] Client connected from ${clientIp}`);
+
   ws.on("message", async (raw) => {
+    // Rate limit WebSocket messages
+    if (!checkRateLimit(`ws:${clientIp}`)) {
+      ws.send(JSON.stringify({ type: "error", message: "Rate limit exceeded. Try again later." }));
+      return;
+    }
+
     let data;
     try { data = JSON.parse(raw.toString()); } catch { ws.send(JSON.stringify({ type: "error", message: "Invalid JSON" })); return; }
     const { prompt, autoSend } = data;
