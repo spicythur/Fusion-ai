@@ -15,7 +15,7 @@ export default function BillingPage() {
 
   const handleUpgrade = async (tier: string) => {
     setLoading(true);
-    try { const res = await fetch("/api/stripe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tier }) }); const data = await res.json(); if (data.url) window.location.href = data.url; } catch (err) { console.error(err); }
+    try { const res = await fetch("/api/payment", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tier }) }); const data = await res.json(); if (data.url) window.location.href = data.url; } catch (err) { console.error(err); }
     setLoading(false);
   };
 
